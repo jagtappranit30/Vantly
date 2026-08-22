@@ -1,0 +1,93 @@
+MERIDIAN MANUFACTURING LTD
+Financial Statements & Operational Metrics (Tabular Reporting Format)
+Financial Year Ended 31 December 2024 | Company Reg: 04812937
+
+================================================================================
+FINANCIAL & OPERATIONAL SUMMARY TABLE (FY2024 vs FY2023)
+================================================================================
+
+Financial Metric                            FY2024 (GBP)      FY2023 (GBP)      Variance (%)
+--------------------------------------------------------------------------------------------
+Turnover / Total Revenue                    4,200,000         3,950,000         +6.3%
+Cost of Goods Sold (COGS)                   2,520,000         2,310,000         +9.1%
+Gross Profit                                1,680,000         1,640,000         +2.4%
+Gross Profit Margin (%)                         40.0%             41.5%         -1.5%
+
+Staff Wages, Salaries & Employer NI         1,050,000           980,000         +7.1%
+Administrative & Operating Expenses           417,000           395,000         +5.6%
+Depreciation & Amortisation Charges           213,000           205,000         +3.9%
+Total Operating Overheads (excl. COGS)      1,680,000         1,580,000         +6.3%
+
+Operating Profit / EBIT                             0            60,000        -100.0%
+Operating Margin (%)                             0.0%              1.5%         -1.5%
+
+Finance & Interest Costs (Net)                 18,000            15,000         +20.0%
+Profit / (Loss) Before Taxation (PBT)         (18,000)           45,000        -140.0%
+Corporation Tax Expense                             0             8,550        -100.0%
+Retained Net Profit / (Loss) for the Year     (18,000)           36,450        -149.4%
+
+================================================================================
+BALANCE SHEET STATEMENT (AS AT 31 DECEMBER 2024)
+================================================================================
+
+Balance Sheet Item                          FY2024 (GBP)      FY2023 (GBP)
+--------------------------------------------------------------------------------
+Tangible Fixed Assets (Plant & Equipment)   1,240,000         1,180,000
+Intangible Assets                              38,000            45,000
+TOTAL NON-CURRENT ASSETS                    1,278,000         1,225,000
+
+Trade & Other Debtors / Receivables           520,000           485,000
+Stock & Work-in-Progress (Raw Materials)      290,000           260,000
+Cash in Hand & Bank Balances                   80,000           110,000
+TOTAL CURRENT ASSETS                          890,000           855,000
+
+TOTAL ASSETS                                2,168,000         2,080,000
+
+Trade Creditors & Payables                    215,000           195,000
+Accrued Expenses & Deferred Revenue           130,000           120,000
+Short-Term Working Capital Facility           100,000            80,000
+TOTAL CURRENT LIABILITIES                     445,000           395,000
+
+Long-Term Bank Borrowings                     380,000           420,000
+Finance Lease / Hire Purchase Liabilities     125,000           140,000
+TOTAL NON-CURRENT LIABILITIES                 505,000           560,000
+
+TOTAL LIABILITIES                             950,000           955,000
+TOTAL NET ASSETS / SHAREHOLDERS' FUNDS      1,218,000         1,125,000
+
+================================================================================
+LABOUR & WORKFORCE PRODUCTIVITY SCHEDULE
+================================================================================
+
+Workforce Breakdown:
+  - Shop-Floor Production Operatives: 28 FTE
+  - Quality Control & Tooling Technicians: 8 FTE
+  - Sales, Client Accounts & Commercial: 4 FTE
+  - Executive & Operational Management: 2 FTE
+  Total Full-Time Equivalent (FTE) Headcount: 42 FTE
+
+Workforce Productivity Ratios:
+  - Revenue per FTE: £4,200,000 / 42 = £100,000
+  - Output per Payroll Pound: £4,200,000 / £1,050,000 = 4.00x
+  - Payroll as % of Turnover: £1,050,000 / £4,200,000 = 25.0%
+
+Industry Benchmark Comparison (UK Manufacturing SME — FY2024):
+  - Revenue per Employee:  P25: £72,000  |  P50 (Median): £98,000  |  P75: £130,000
+  - Output per Payroll:    P25: 2.8x     |  P50 (Median): 3.7x     |  P75: 5.2x
+
+================================================================================
+DIGITAL INFRASTRUCTURE & ENTERPRISE TECHNOLOGY AUDIT
+================================================================================
+
+Active Software Deployments (5 Systems):
+  1. SAP S/4HANA (Cloud ERP Core) — Enterprise resource planning and supply chain
+  2. Salesforce CRM — Customer acquisition, account tracking and pipeline forecasting
+  3. Microsoft 365 & Power BI — Executive analytics dashboards and office collaboration
+  4. Keyence Automated Optical Vision Systems — Inline quality defect inspection
+  5. SYSPRO MES — Shop-floor dispatch, machine scheduling, and work order tracking
+
+Digital Maturity Rating: HIGH (5 modern enterprise platforms integrated across business)
+
+================================================================================
+END OF FINANCIAL & OPERATIONAL REPORT
+================================================================================

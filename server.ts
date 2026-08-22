@@ -179,8 +179,8 @@ async function verifyDocumentOwnership(docId: string, userUid?: string): Promise
 const SECTOR_BENCHMARKS: Record<string, SectorBenchmarks> = {
   Manufacturing: {
     sector: "Manufacturing",
-    revenue_per_employee: { p25: 120000, p50: 175000, p75: 240000 },
-    output_per_payroll: { p25: 3.5, p50: 4.2, p75: 5.1 },
+    revenue_per_employee: { p25: 72000, p50: 98000, p75: 130000 },
+    output_per_payroll: { p25: 2.8, p50: 3.7, p75: 5.2 },
     gross_margin: { p25: 25, p50: 35, p75: 45 },
     operating_margin: { p25: 5, p50: 12, p75: 20 },
   },

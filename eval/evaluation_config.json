@@ -1,0 +1,11 @@
+{
+  "llm": "qwen2.5:7b",
+  "embedding": "Ollama",
+  "fallback_embedding": "BAAI/bge-small-en-v1.5",
+  "top_k": 5,
+  "min_similarity_threshold": 0.25,
+  "runs": 3,
+  "temperature": 0.2,
+  "evaluator_llm": "gpt-4o-mini",
+  "evaluator_embedding": "text-embedding-3-small"
+}

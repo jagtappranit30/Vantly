@@ -1,0 +1,34 @@
+{
+  "Manufacturing": {
+    "sector": "Manufacturing",
+    "revenue_per_employee": { "p25": 72000, "p50": 98000, "p75": 130000 },
+    "output_per_payroll": { "p25": 2.8, "p50": 3.7, "p75": 5.2 },
+    "gross_margin": { "p25": 25, "p50": 35, "p75": 45 },
+    "operating_margin": { "p25": 5, "p50": 12, "p75": 20 },
+    "source": "illustrative / synthetic"
+  },
+  "Services": {
+    "sector": "Services",
+    "revenue_per_employee": { "p25": 100000, "p50": 145000, "p75": 210000 },
+    "output_per_payroll": { "p25": 2.8, "p50": 3.8, "p75": 4.9 },
+    "gross_margin": { "p25": 40, "p50": 55, "p75": 70 },
+    "operating_margin": { "p25": 8, "p50": 18, "p75": 28 },
+    "source": "illustrative / synthetic"
+  },
+  "Retail": {
+    "sector": "Retail",
+    "revenue_per_employee": { "p25": 150000, "p50": 190000, "p75": 250000 },
+    "output_per_payroll": { "p25": 4.2, "p50": 5.3, "p75": 6.5 },
+    "gross_margin": { "p25": 20, "p50": 28, "p75": 38 },
+    "operating_margin": { "p25": 2, "p50": 6, "p75": 12 },
+    "source": "illustrative / synthetic"
+  },
+  "Other": {
+    "sector": "Other",
+    "revenue_per_employee": { "p25": 110000, "p50": 160000, "p75": 220000 },
+    "output_per_payroll": { "p25": 3.2, "p50": 4.0, "p75": 5.5 },
+    "gross_margin": { "p25": 28, "p50": 38, "p75": 50 },
+    "operating_margin": { "p25": 5, "p50": 10, "p75": 18 },
+    "source": "illustrative / synthetic"
+  }
+}
