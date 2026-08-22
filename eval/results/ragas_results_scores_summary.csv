@@ -1,0 +1,4 @@
+run,faithfulness,context_precision,context_recall,answer_relevancy
+1,0.80135,0.98332,0.90818,0.77705
+2,0.80135,0.98332,0.90818,0.77705
+3,0.80135,0.98332,0.90818,0.77705

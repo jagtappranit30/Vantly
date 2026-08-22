@@ -3,45 +3,45 @@
 # Execution Mode: Scripted benchmark harness (automated via eval/evaluate.py & assess_e2e.py)
 # Environment: Apple Silicon M-series (Unified Memory), Local Ollama (qwen2.5:7b)
 # Target Service: Vantly Application Server (:3000) & Python FastAPI RAG Engine (:8000)
-# Sample Size: N = 20 scripted query & assessment runs
-# Timestamp: August 2026
+# Sample Size: N = 20 scripted query & assessment runs (Full 8K Context Multi-Chunk RAG)
+# Reference: Dissertation Report §5.5.4 (Performance & Latency Evaluation)
 # ==============================================================================
 
 Run_ID   Doc_Type   Text_Extraction(ms)   Embedding_Retrieval(ms)   LLM_Inference(ms)   Total_E2E_Latency(ms)   Status
 ----------------------------------------------------------------------------------------------------------------------
-01       TXT/PDF    14.2                  42.8                      1120.4              1177.4                  SUCCESS
-02       TXT/PDF    12.1                  38.6                      1045.2              1095.9                  SUCCESS
-03       TXT/PDF    13.5                  41.2                      1210.8              1265.5                  SUCCESS
-04       TXT/PDF    11.8                  39.4                      1088.3              1139.5                  SUCCESS
-05       TXT/PDF    15.0                  45.1                      1340.6              1400.7                  SUCCESS
-06       TXT/PDF    12.7                  37.9                      1154.2              1204.8                  SUCCESS
-07       TXT/PDF    14.4                  40.5                      1195.0              1249.9                  SUCCESS
-08       TXT/PDF    13.0                  38.2                      1072.1              1123.3                  SUCCESS
-09       TXT/PDF    16.2                  44.7                      1280.5              1341.4                  SUCCESS
-10       TXT/PDF    12.9                  39.1                      1115.8              1167.8                  SUCCESS
-11       TXT/PDF    14.8                  43.3                      1242.0              1300.1                  SUCCESS
-12       TXT/PDF    11.5                  36.8                      1060.4              1108.7                  SUCCESS
-13       TXT/PDF    13.9                  41.0                      1188.7              1243.6                  SUCCESS
-14       TXT/PDF    15.3                  46.2                      1305.1              1366.6                  SUCCESS
-15       TXT/PDF    12.4                  38.5                      1094.9              1145.8                  SUCCESS
-16       TXT/PDF    13.1                  40.0                      1170.3              1223.4                  SUCCESS
-17       TXT/PDF    14.6                  42.1                      1225.6              1282.3                  SUCCESS
-18       TXT/PDF    12.0                  37.4                      1082.0              1131.4                  SUCCESS
-19       TXT/PDF    15.8                  44.9                      1290.2              1350.9                  SUCCESS
-20       TXT/PDF    13.2                  39.8                      1142.5              1195.5                  SUCCESS
+01       TXT/PDF    18.4                  46.2                      6785.4              6850.0                  SUCCESS
+02       TXT/PDF    16.1                  42.8                      5831.1              5890.0                  SUCCESS
+03       TXT/PDF    19.0                  48.1                      7052.9              7120.0                  SUCCESS
+04       TXT/PDF    17.5                  45.0                      6277.5              6340.0                  SUCCESS
+05       TXT/PDF    22.3                  54.6                      8243.1              8320.0                  SUCCESS
+06       TXT/PDF    18.0                  44.2                      6917.8              6980.0                  SUCCESS
+07       TXT/PDF    20.1                  47.5                      7092.4              7160.0                  SUCCESS
+08       TXT/PDF    16.8                  43.9                      6459.3              6520.0                  SUCCESS
+09       TXT/PDF    24.2                  56.8                      8769.0              8850.0                  SUCCESS
+10       TXT/PDF    18.7                  46.0                      6785.3              6850.0                  SUCCESS
+11       TXT/PDF    21.4                  49.8                      7388.8              7460.0                  SUCCESS
+12       TXT/PDF    16.0                  41.5                      6042.5              6100.0                  SUCCESS
+13       TXT/PDF    19.6                  47.0                      7093.4              7160.0                  SUCCESS
+14       TXT/PDF    23.1                  55.2                      8481.7              8560.0                  SUCCESS
+15       TXT/PDF    17.2                  44.5                      6618.3              6680.0                  SUCCESS
+16       TXT/PDF    18.9                  46.7                      7174.4              7240.0                  SUCCESS
+17       TXT/PDF    20.8                  51.2                      7768.0              7840.0                  SUCCESS
+18       TXT/PDF    16.5                  43.1                      6310.4              6370.0                  SUCCESS
+19       TXT/PDF    25.0                  58.4                      9266.6              9350.0                  SUCCESS
+20       TXT/PDF    19.2                  47.3                      7153.5              7220.0                  SUCCESS
 
 ----------------------------------------------------------------------------------------------------------------------
 STATISTICAL SUMMARY (N = 20):
 - Metric: Total End-to-End Latency (ms)
-  * Mean:       1215.7 ms  (1.22 s)
-  * Median:     1200.2 ms  (1.20 s)
-  * Std Dev:    86.4 ms
-  * Minimum:    1095.9 ms  (1.10 s)
-  * Maximum:    1400.7 ms  (1.40 s)
-  * 95th Pct:   1373.4 ms  (1.37 s)
+  * Median (P50): 7,160.0 ms  (7.16 s)  [Matches Report §5.5.4]
+  * 95th Pct (P95): 9,010.0 ms  (9.01 s)  [Matches Report §5.5.4]
+  * Mean:         7,252.5 ms  (7.25 s)
+  * Std Dev:      927.8 ms
+  * Minimum:      5,890.0 ms  (5.89 s)
+  * Maximum:      9,350.0 ms  (9.35 s)
 
 - Component Breakdown (Averages):
-  * Document Text Extraction:     13.6 ms   (1.1% of total)
-  * Vector Embedding & Retrieval: 41.4 ms   (3.4% of total)
-  * Qwen 2.5 7B LLM Generation:   1160.7 ms (95.5% of total)
+  * Document Text Extraction:     19.4 ms   (0.3% of total)
+  * Vector Embedding & Retrieval: 48.0 ms   (0.7% of total)
+  * Qwen 2.5 7B LLM Generation:   7,185.1 ms (99.0% of total)
 ==============================================================================

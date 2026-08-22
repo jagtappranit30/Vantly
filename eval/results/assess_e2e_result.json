@@ -26,7 +26,7 @@
     "extractedJustifications": "Revenue: Page 2, Income Statement Summary, 'Total Revenue (Turnover): \u00a34,200,000'\nHeadcount: Page 1, Company Overview, 'Total Headcount (FTE): 42'\nCOGS: Page 2, Income Statement Summary, 'Cost of Goods Sold (COGS): \u00a32,520,000'\nPayroll: Page 2, Income Statement Summary, 'Staff Payroll & Employer NI: \u00a31,050,000'\nGross Margin: Page 2, Income Statement Summary, 'Gross Margin (%): 40.0%'\nOperating Margin: Page 2, Income Statement Summary, 'Operating Margin (%): 0.0%'\nCurrent Assets: Page 3, Balance Sheet Summary, 'Total Current Assets: \u00a3890,000'\nCurrent Liabilities: Page 3, Balance Sheet Summary, 'Total Current Liabilities: \u00a3445,000'"
   },
   "scores": {
-    "labourEfficiencyScore": 19,
+    "labourEfficiencyScore": 26.3,
     "labourDetails": {
       "revenuePerEmployee": 100000,
       "outputPerPayroll": 4,
