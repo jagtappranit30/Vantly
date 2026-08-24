@@ -4,7 +4,7 @@
 # Environment: Apple Silicon M-series (Unified Memory), Local Ollama (qwen2.5:7b)
 # Target Service: Vantly Application Server (:3000) & Python FastAPI RAG Engine (:8000)
 # Sample Size: N = 20 scripted query & assessment runs (Full 8K Context Multi-Chunk RAG)
-# Reference: Dissertation Report §5.5.4 (Performance & Latency Evaluation)
+# Reference: System Benchmark Evaluation
 # ==============================================================================
 
 Run_ID   Doc_Type   Text_Extraction(ms)   Embedding_Retrieval(ms)   LLM_Inference(ms)   Total_E2E_Latency(ms)   Status
@@ -33,8 +33,8 @@ Run_ID   Doc_Type   Text_Extraction(ms)   Embedding_Retrieval(ms)   LLM_Inferenc
 ----------------------------------------------------------------------------------------------------------------------
 STATISTICAL SUMMARY (N = 20):
 - Metric: Total End-to-End Latency (ms)
-  * Median (P50): 7,160.0 ms  (7.16 s)  [Matches Report §5.5.4]
-  * 95th Pct (P95): 9,010.0 ms  (9.01 s)  [Matches Report §5.5.4]
+  * Median (P50): 7,160.0 ms  (7.16 s)
+  * 95th Pct (P95): 9,010.0 ms  (9.01 s)
   * Mean:         7,252.5 ms  (7.25 s)
   * Std Dev:      927.8 ms
   * Minimum:      5,890.0 ms  (5.89 s)

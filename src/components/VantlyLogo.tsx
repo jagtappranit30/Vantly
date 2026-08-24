@@ -8,7 +8,7 @@ interface VantlyLogoProps {
 export const VantlyLogo: React.FC<VantlyLogoProps> = ({ className = "", size = 40 }) => {
   return (
     <svg
-      id="vantly-ai-logo"
+      id="vantly-logo"
       className={`select-none ${className}`}
       width={size}
       height={size}
@@ -75,7 +75,7 @@ export const VantlyLogo: React.FC<VantlyLogoProps> = ({ className = "", size = 4
         fill="url(#tealStemGrad)"
       />
 
-      {/* Growth/Data Line Chart (Interactive Data/AI Accent) */}
+      {/* Growth/Data Line Chart */}
       <g>
         {/* Line */}
         <line

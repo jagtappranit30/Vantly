@@ -28,6 +28,7 @@ services:
       - "3000:3000"
     environment:
       - SQL_HOST=db
+      - SQL_PORT=5432
       - SQL_DB_NAME=vantly
       - SQL_USER=postgres
       - SQL_PASSWORD=postgres

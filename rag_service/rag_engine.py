@@ -70,6 +70,10 @@ class RAGEngine:
                     for c in chunks
                 ]
 
+            dir_name = os.path.dirname(os.path.abspath(self.storage_file))
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
+
             temp_file = f"{self.storage_file}.tmp"
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(serializable_store, f)

@@ -147,10 +147,10 @@ export const RAGChat: React.FC<RAGChatProps> = ({ docId, companyName, fileName }
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-display font-black text-sm text-zinc-950">Python RAG Document Assistant</h3>
+              <h3 className="font-display font-black text-sm text-zinc-950">Document Query Assistant</h3>
               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                FastAPI + PyPDF + Ollama Vectors
+                Vector Context Index
               </span>
             </div>
             <p className="text-xs text-zinc-500">
@@ -235,7 +235,7 @@ export const RAGChat: React.FC<RAGChatProps> = ({ docId, companyName, fileName }
             </div>
             <div className="px-4 py-3 rounded-2xl bg-white border border-zinc-200 text-xs text-zinc-500 flex items-center gap-2 shadow-2xs">
               <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></div>
-              Vectorizing query & searching document chunks via Python RAG engine...
+              Searching document context and retrieving relevant sections...
             </div>
           </div>
         )}
@@ -253,7 +253,7 @@ export const RAGChat: React.FC<RAGChatProps> = ({ docId, companyName, fileName }
         >
           <input type="text" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={`Ask a question about ${fileName}...`} disabled={loading} className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all" />
           <button type="submit" disabled={loading || !question.trim()} className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 text-white font-medium text-sm flex items-center gap-2 shadow-sm transition-all shrink-0">
-            <span>Ask RAG</span>
+            <span>Ask Question</span>
             <Send className="w-4 h-4" />
           </button>
         </form>
@@ -261,7 +261,7 @@ export const RAGChat: React.FC<RAGChatProps> = ({ docId, companyName, fileName }
           <span className="flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-emerald-500" /> Grounded in original document text
           </span>
-          <span>FastAPI • pypdf • Ollama Vector Embeddings</span>
+          <span>Context Vector Retrieval • Secure Document Store</span>
         </div>
       </div>
     </div>

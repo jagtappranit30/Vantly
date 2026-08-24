@@ -336,7 +336,7 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
 
   y += 22;
 
-  // PAGE BREAK & SECOND PAGE: QUALITATIVE & AI RECOMMENDATIONS
+  // PAGE BREAK & SECOND PAGE: QUALITATIVE & PERFORMANCE RECOMMENDATIONS
   doc.addPage();
   pageCount++;
   drawPageChrome(pageCount);
@@ -372,7 +372,7 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.setFont("Helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(79, 70, 229); // indigo-600
-  doc.text("ACTIONABLE AI-POWERED BUSINESS RECOMMENDATIONS", marginX, y);
+  doc.text("ACTIONABLE BUSINESS RECOMMENDATIONS", marginX, y);
   y += 5;
 
   const recList = scores.recommendations && scores.recommendations.length > 0 
@@ -417,13 +417,13 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.setFont("Helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(79, 70, 229); // indigo-600
-  doc.text("COGNITIVE AUDIT TRAIL & TRACEABILITY LOG", marginX, y);
+  doc.text("AUDIT TRAIL & TRACEABILITY LOG", marginX, y);
   y += 3;
 
   doc.setFont("Helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139); // slate-500
-  doc.text("Verification and justification log indicating the context extracted from files by the LLM core.", marginX, y);
+  doc.text("Verification and justification log indicating the context extracted from files by the engine.", marginX, y);
   y += 6;
 
   // Verification metrics
@@ -433,7 +433,7 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.setFont("Helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42); // slate-900
-  doc.text("Cognitive Extraction Confidence:", marginX + 4, y + 6);
+  doc.text("Extraction Confidence:", marginX + 4, y + 6);
   doc.setTextColor(79, 70, 229); // indigo-600
   doc.text(`${metrics.confidence}%`, marginX + 54, y + 6);
 
@@ -442,7 +442,7 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.text("Trace Logging Source:", marginX + 100, y + 6);
   doc.setFont("Helvetica", "normal");
   doc.setTextColor(51, 65, 85); // slate-700
-  doc.text("Ollama Qwen 2.5 Core", marginX + 134, y + 6);
+  doc.text("Vantly Analysis Core", marginX + 134, y + 6);
 
   y += 15;
 

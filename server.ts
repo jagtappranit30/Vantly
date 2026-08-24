@@ -48,6 +48,25 @@ function startRAGService() {
   });
 }
 
+// Graceful cleanup on server termination
+process.on("SIGINT", () => {
+  if (ragProcess) {
+    try {
+      ragProcess.kill();
+    } catch (_) {}
+  }
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  if (ragProcess) {
+    try {
+      ragProcess.kill();
+    } catch (_) {}
+  }
+  process.exit(0);
+});
+
 startRAGService();
 
 const app = express();
@@ -616,7 +635,7 @@ app.post("/api/assess", optionalAuth, handleUpload, async (req: AuthRequest, res
     }
 
     const llmConfig = resolveTaskLLM("assessment");
-    console.log(`[Multi-LLM Router] Task: Financial Assessment | Model: ${llmConfig.model}`);
+    console.log(`[Assessment Router] Task: Financial Assessment | Model: ${llmConfig.model}`);
 
     const ollamaUrl = llmConfig.ollamaUrl;
     const ollamaModel = llmConfig.model;

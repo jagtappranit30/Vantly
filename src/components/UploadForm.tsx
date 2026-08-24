@@ -93,7 +93,7 @@ export default function UploadForm({ onStartAssessment, isLoading, error, setErr
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-100 pb-6">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-650 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100/50 ">
-                Cognitive Analyzer
+                Financial Analyzer
               </span>
               <h2 className="text-2xl md:text-3xl font-display font-bold text-zinc-900 mt-3 tracking-tight">
                 New Productivity Assessment
@@ -104,7 +104,7 @@ export default function UploadForm({ onStartAssessment, isLoading, error, setErr
             </div>
             <div className="hidden md:flex items-center gap-1 text-zinc-450 text-[11px] font-semibold bg-zinc-50 px-3 py-1.5 rounded-xl border border-zinc-200/50 ">
               <Info className="w-3.5 h-3.5 text-indigo-500" />
-              Ollama Qwen 2.5 Powered
+              Automated Analysis
             </div>
           </div>
 

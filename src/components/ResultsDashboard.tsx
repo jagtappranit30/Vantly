@@ -36,7 +36,7 @@ const CustomTooltip = ({ active, payload, label, formatter }: any) => {
 };
 
 // Loading phase messages (stable reference outside component)
-const LOADING_STEPS = ["Uploading financial statement to workspace server...", "Initializing Ollama Qwen 2.5 cognitive parsing...", "Scanning Balance Sheet & Profit & Loss statements...", "Extracting Revenue, COGS, and liquidity figures...", "Measuring labour productivity & payroll leverage...", "Synthesizing customized AI recommendations...", "Finalizing sector percentile benchmarks..."];
+const LOADING_STEPS = ["Uploading financial statement to workspace server...", "Parsing financial statements and ledger structure...", "Scanning Balance Sheet & Profit & Loss statements...", "Extracting Revenue, COGS, and liquidity figures...", "Measuring labour productivity & payroll leverage...", "Synthesizing customized performance recommendations...", "Finalizing sector percentile benchmarks..."];
 
 export default function ResultsDashboard({ assessment, onBack, onDelete, isLoading = false, loadingCompanyName = "Your Company", loadingSector = "Manufacturing" }: ResultsDashboardProps) {
   const { idToken, googleAccessToken, signInWithGoogle } = useAuth();
@@ -99,7 +99,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
               </div>
             </div>
 
-            {/* AI Status Step Monitor integrated directly into skeleton */}
+            {/* Status Step Monitor integrated directly into skeleton */}
             <div className="relative z-10 border-t border-zinc-800/60 pt-5 mt-4 flex items-center gap-3">
               <div className="w-5 h-5 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
               <div className="flex-1">
@@ -421,12 +421,12 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
       {/* Segmented Control Switcher Tabs */}
       <div className="bg-zinc-100 p-1.5 rounded-2xl flex border border-zinc-200/50 overflow-x-auto gap-1 scrollbar-none">
         {[
-          { id: "overview", label: "AI Overview", icon: Lightbulb },
+          { id: "overview", label: "Executive Overview", icon: Lightbulb },
           { id: "labour", label: "Labour Efficiency", icon: Users },
           { id: "financial", label: "Financial Health", icon: DollarSign },
           { id: "digital", label: "Digitalization", icon: Cpu },
           { id: "justification", label: "Audit Traceability", icon: FileText },
-          { id: "rag", label: "Python RAG Q&A", icon: Sparkles },
+          { id: "rag", label: "Document Q&A", icon: Sparkles },
         ].map((tab) => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
@@ -446,7 +446,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-500" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Cognitive Synthesis</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Executive Summary</span>
               </div>
               <h3 className="text-xl font-display font-bold text-zinc-900 tracking-tight">Qualitative SME Performance Analysis</h3>
               <p className="text-zinc-650 text-xs md:text-sm leading-relaxed whitespace-pre-line bg-zinc-50/50 p-6 rounded-2xl border border-zinc-150 font-medium">{scores.qualitativeAnalysis}</p>
@@ -653,19 +653,19 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
             <div className="flex items-start gap-4 p-5 bg-zinc-50 border border-zinc-150 rounded-2xl">
               <FileText className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-sm font-bold text-zinc-900">AI Audit & Document Traceability</h4>
-                <p className="text-xs text-zinc-500 leading-relaxed mt-0.5 font-medium">To assure strict audit traceability required in commercial reports, the LLM indexes the exact audit traces for each processed field.</p>
+                <h4 className="text-sm font-bold text-zinc-900">Audit & Document Traceability</h4>
+                <p className="text-xs text-zinc-500 leading-relaxed mt-0.5 font-medium">To assure strict audit traceability required in commercial reports, the system indexes the exact audit traces for each processed field.</p>
               </div>
             </div>
 
-            {/* Anti-Hallucination & Verification Guard */}
+            {/* Data Verification Guard */}
             <div className="p-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl space-y-4">
               <div className="flex items-center gap-2.5">
                 <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600">
                   <ShieldAlert className="w-4 h-4" />
                 </span>
                 <div>
-                  <h4 className="text-xs font-bold text-zinc-900">Anti-Hallucination & Verification Guard</h4>
+                  <h4 className="text-xs font-bold text-zinc-900">Direct Data Verification Guard</h4>
                   <p className="text-[10px] text-zinc-450 font-bold uppercase tracking-wider">Passive Document Verification Protocol</p>
                 </div>
               </div>
@@ -719,7 +719,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Audit Trace Log:</span>
               <p className="text-xs text-zinc-650 font-mono leading-relaxed whitespace-pre-wrap bg-white p-4 rounded-xl border border-zinc-200 font-semibold shadow-2xs">{metrics.extractedJustifications}</p>
               <div className="flex items-center justify-between text-[10px] font-bold uppercase text-zinc-400 mt-3.5">
-                <span>Extraction Engine: Ollama Qwen 2.5</span>
+                <span>Extraction Engine: Vantly Core</span>
                 <span>Trace Confidence: {metrics.confidence}%</span>
               </div>
             </div>
