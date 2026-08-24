@@ -587,15 +587,19 @@ vantly/
 | Variable | Default | Description |
 |---|---|---|
 | `LLM_PROVIDER` | `ollama` | LLM provider (only `ollama` is supported) |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API endpoint |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` (Docker: `http://host.docker.internal:11434`) | Ollama API endpoint |
 | `OLLAMA_MODEL` | `qwen2.5:7b` | Default model for all tasks |
 | `ASSESSMENT_MODEL` | (inherits `OLLAMA_MODEL`) | Override model for financial assessment |
 | `RAG_MODEL` | (inherits `OLLAMA_MODEL`) | Override model for RAG queries |
 | `STRATEGY_MODEL` | (inherits `OLLAMA_MODEL`) | Override model for strategy tasks |
 | `SQL_HOST` | `db` (Docker) / `localhost` | PostgreSQL host |
+| `SQL_PORT` | `5432` | PostgreSQL port |
 | `SQL_USER` | `postgres` | PostgreSQL username |
 | `SQL_PASSWORD` | `postgres` | PostgreSQL password |
 | `SQL_DB_NAME` | `vantly` | PostgreSQL database name |
+| `RAG_SERVICE_URL` | `http://127.0.0.1:8000` | Python FastAPI RAG microservice URL |
+| `VECTOR_STORE_FILE` | `/app/rag_service/data/vector_store.json` | Path to persisted JSON vector store |
+| `RAG_MIN_SIMILARITY`| `0.25` | Minimum cosine similarity threshold for retrieval |
 | `OPENAI_API_KEY` | — | Optional, only needed for RAGAS evaluation |
 
 ---
@@ -606,19 +610,22 @@ vantly/
 
 ```bash
 # 1. Clone
-git clone https://github.com/jagtappranit30/Vanity.git
-cd Vanity
+git clone https://github.com/jagtappranit30/vantly.git
+cd vantly
 
-# 2. Make sure Ollama is running with the model pulled
+# 2. Make sure Ollama is running on host with Qwen 2.5
 ollama pull qwen2.5:7b
 
 # 3. Configure environment
 cp .env.example .env
 
-# 4. Start everything (PostgreSQL + app)
-docker compose up --build
+# 4. Start everything (PostgreSQL + Express + Python RAG)
+docker compose up --build -d
 
-# 5. Open http://localhost:3000
+# 5. Check logs & verify
+docker compose logs -f app
+
+# 6. Open http://localhost:3000
 ```
 
 ### Local Development
@@ -627,18 +634,24 @@ docker compose up --build
 # Start PostgreSQL (via Docker or locally)
 docker run -d --name vantly-db -e POSTGRES_DB=vantly -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:15-alpine
 
-# Install dependencies
+# Install Node dependencies
 npm install
-cd rag_service && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && cd ..
+
+# Setup Python virtualenv for RAG service
+cd rag_service
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd ..
 
 # Set SQL_HOST=localhost in .env
 cp .env.example .env
 # Edit .env: SQL_HOST="localhost"
 
-# Run migrations
+# Run database migrations
 npx drizzle-kit push --config=src/db/drizzle.config.ts
 
-# Start dev server (Express + Vite HMR + Python RAG)
+# Start dev server (Express + Vite HMR + Python RAG microservice)
 npm run dev
 
 # Open http://localhost:3000
