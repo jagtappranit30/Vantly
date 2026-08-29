@@ -111,10 +111,12 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   // Score big text
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(28);
-  doc.text(`${scores.productivityIndex}`, marginX + 8, y + 22);
+  const prodScoreStr = `${scores.productivityIndex}`;
+  doc.text(prodScoreStr, marginX + 8, y + 22);
+  const prodScoreWidth = prodScoreStr.length * 6.5; // Manual width approx for 28pt Helvetica
   doc.setFontSize(11);
   doc.setTextColor(156, 163, 175); // gray-400
-  doc.text("/100", marginX + 25, y + 20);
+  doc.text("/100", marginX + 8 + prodScoreWidth + 2, y + 22);
 
   // Status tag background
   doc.setFillColor(31, 41, 55); // gray-800
@@ -161,10 +163,12 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.text("LABOUR EFFICIENCY", marginX + 4, y + 5);
   doc.setTextColor(15, 23, 42); // slate-900
   doc.setFontSize(14);
-  doc.text(`${scores.labourEfficiencyScore}`, marginX + 4, y + 12);
+  const labScoreStr = `${scores.labourEfficiencyScore}`;
+  doc.text(labScoreStr, marginX + 4, y + 12);
+  const labScoreWidth = labScoreStr.length * 3.2; // Manual width approx for 14pt Helvetica
   doc.setTextColor(148, 163, 184); // slate-400
   doc.setFontSize(8);
-  doc.text("/50", marginX + 11, y + 11);
+  doc.text("/50", marginX + 4 + labScoreWidth + 2, y + 12);
   doc.setFont("Helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139); // slate-500
@@ -179,10 +183,12 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.text("FINANCIAL HEALTH", marginX + cardWidth + 8, y + 5);
   doc.setTextColor(15, 23, 42); // slate-900
   doc.setFontSize(14);
-  doc.text(`${scores.financialHealthScore}`, marginX + cardWidth + 8, y + 12);
+  const finScoreStr = `${scores.financialHealthScore}`;
+  doc.text(finScoreStr, marginX + cardWidth + 8, y + 12);
+  const finScoreWidth = finScoreStr.length * 3.2;
   doc.setTextColor(148, 163, 184); // slate-400
   doc.setFontSize(8);
-  doc.text("/50", marginX + cardWidth + 15, y + 11);
+  doc.text("/50", marginX + cardWidth + 8 + finScoreWidth + 2, y + 12);
   doc.setFont("Helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139); // slate-500
@@ -197,10 +203,12 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.text("DIGITAL MATURITY", marginX + 2 * cardWidth + 12, y + 5);
   doc.setTextColor(15, 23, 42); // slate-900
   doc.setFontSize(14);
-  doc.text(`${scores.digitalMaturityScore}`, marginX + 2 * cardWidth + 12, y + 12);
+  const digScoreStr = `${scores.digitalMaturityScore}`;
+  doc.text(digScoreStr, marginX + 2 * cardWidth + 12, y + 12);
+  const digScoreWidth = digScoreStr.length * 3.2;
   doc.setTextColor(148, 163, 184); // slate-400
   doc.setFontSize(8);
-  doc.text("/100", marginX + 2 * cardWidth + 21, y + 11);
+  doc.text("/100", marginX + 2 * cardWidth + 12 + digScoreWidth + 2, y + 12);
   doc.setFont("Helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139); // slate-500
@@ -315,15 +323,6 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.text("DIGITAL BOOKKEEPING SYSTEMS & PROCESS SIGNALS", marginX, y);
   y += 4;
 
-  doc.setFillColor(248, 250, 252); // slate-50
-  doc.setDrawColor(226, 232, 240); // slate-200
-  doc.rect(marginX, y, pageWidth - 2 * marginX, 15, "FD");
-
-  doc.setFont("Helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105); // slate-600
-  doc.text("Detected Tech Stack Signals:", marginX + 4, y + 5);
-
   const toolsStr = metrics.digitalTools.length > 0 
     ? metrics.digitalTools.join(" • ") 
     : "No explicit digital bookkeeping system or ERP tools identified in financial statement.";
@@ -332,9 +331,24 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42); // slate-900
   const wrappedTools = doc.splitTextToSize(toolsStr, pageWidth - 2 * marginX - 12);
+
+  const toolsHeight = 10 + (wrappedTools.length * 4);
+
+  doc.setFillColor(248, 250, 252); // slate-50
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.rect(marginX, y, pageWidth - 2 * marginX, toolsHeight, "FD");
+
+  doc.setFont("Helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105); // slate-600
+  doc.text("Detected Tech Stack Signals:", marginX + 4, y + 5);
+
+  doc.setFont("Helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(15, 23, 42); // slate-900
   doc.text(wrappedTools, marginX + 4, y + 10);
 
-  y += 22;
+  y += toolsHeight + 7;
 
   // PAGE BREAK & SECOND PAGE: QUALITATIVE & PERFORMANCE RECOMMENDATIONS
   doc.addPage();
