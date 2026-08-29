@@ -227,8 +227,29 @@ const SECTOR_BENCHMARKS: Record<string, SectorBenchmarks> = {
 };
 
 
+/** Hardcoded fallback recommendations used only when the LLM produces no valid recommendations. */
+const FALLBACK_RECOMMENDATIONS: string[] = [
+  "Review current payroll allocation to optimize labour output.",
+  "Track supplier expenses more accurately to raise gross margins.",
+  "Explore standard automation software (ERPs, cloud bookkeeping) to improve digital flow."
+];
+
+/**
+ * Validates raw LLM recommendation output.
+ * Returns a cleaned string[] when at least one non-empty string is present;
+ * returns null when the input is missing, not an array, empty, or contains only blank strings.
+ */
+function validateLLMRecommendations(recs: any): string[] | null {
+  if (!Array.isArray(recs) || recs.length === 0) return null;
+  const valid = recs
+    .filter((r: any): r is string => typeof r === "string")
+    .map((r: string) => r.trim())
+    .filter((r: string) => r.length > 0);
+  return valid.length > 0 ? valid : null;
+}
+
 // Scoring logic — clearly handles null inputs vs reported zeros
-function calculateScores(metrics: any, sectorName: string): { scores: AssessmentScores, benchmarks: SectorBenchmarks } {
+function calculateScores(metrics: any, sectorName: string, llmRecommendations?: any): { scores: AssessmentScores, benchmarks: SectorBenchmarks } {
   const benchmarks = SECTOR_BENCHMARKS[sectorName] || SECTOR_BENCHMARKS["Other"];
 
   // 1. LABOUR EFFICIENCY (0-50)
@@ -324,6 +345,10 @@ function calculateScores(metrics: any, sectorName: string): { scores: Assessment
   if (level === "Medium") digitalMaturityScore += 10;
   digitalMaturityScore = Math.min(Math.max(Math.round(digitalMaturityScore), 10), 100);
 
+    const validLLMRecs = validateLLMRecommendations(llmRecommendations);
+    const recommendations = validLLMRecs ?? FALLBACK_RECOMMENDATIONS;
+    const recommendationSource: "llm" | "fallback" = validLLMRecs !== null ? "llm" : "fallback";
+
   const scores: AssessmentScores = {
     labourEfficiencyScore,
     labourDetails: {
@@ -344,11 +369,8 @@ function calculateScores(metrics: any, sectorName: string): { scores: Assessment
     digitalMaturityScore,
     digitalMaturityLevel: level as "Low" | "Medium" | "High",
     qualitativeAnalysis: metrics.qualitativeAnalysis || "Assessment completed successfully based on provided financials.",
-    recommendations: metrics.recommendations && metrics.recommendations.length > 0 ? metrics.recommendations : [
-      "Review current payroll allocation to optimize labour output.",
-      "Track supplier expenses more accurately to raise gross margins.",
-      "Explore standard automation software (ERPs, cloud bookkeeping) to improve digital flow."
-    ]
+    recommendations,
+    recommendationSource,
   };
 
   return { scores, benchmarks };
@@ -935,7 +957,15 @@ You MUST return ONLY a JSON object (no markdown, no backticks) with this structu
       extractedJustifications: llmResult.extractedJustifications || "Extracted using deterministic general ledger analysis."
     };
 
-    const { scores, benchmarks } = calculateScores(metrics, sector);
+    // ── Recommendation wiring: pass llmResult.recommendations explicitly.
+    // Prior to this fix, llmResult.recommendations was never transferred to metrics,
+    // causing calculateScores() to always fall back to hardcoded defaults.
+    const rawLLMRecs = llmResult.recommendations;
+    console.log(`[Recommendations] LLM field present: ${rawLLMRecs !== undefined && rawLLMRecs !== null}`);
+    console.log(`[Recommendations] LLM array length: ${Array.isArray(rawLLMRecs) ? rawLLMRecs.length : "n/a (not an array)"}`);
+
+    const { scores, benchmarks } = calculateScores(metrics, sector, rawLLMRecs);
+    console.log(`[Recommendations] Source: ${scores.recommendationSource} | Count: ${scores.recommendations.length}`);
 
     // Cryptographically secure UUID generation
     const id = crypto.randomUUID();

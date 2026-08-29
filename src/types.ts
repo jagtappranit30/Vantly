@@ -42,6 +42,8 @@ export interface AssessmentScores {
   digitalMaturityLevel: "Low" | "Medium" | "High";
   qualitativeAnalysis: string;
   recommendations: string[];
+  /** Provenance field: indicates whether recommendations came from the LLM or the hardcoded fallback. */
+  recommendationSource: "llm" | "fallback";
 }
 
 export interface AssessmentRun {
