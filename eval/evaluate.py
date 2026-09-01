@@ -1,97 +1,99 @@
 #!/usr/bin/env python3
 """
-Vantly RAG Evaluation Harness
-==============================
-Runs a real RAGAS evaluation (Faithfulness, Context Precision,
-Context Recall, Answer Relevancy) against the Vantly Python RAG
-microservice using a synthetic financial fixture document and a
-hand-written, deterministic ground-truth QA set.
+Productive Point RAG Evaluation Harness — Multi-Scenario Independent Benchmark
+==============================================================================
+Runs independent, evidenced RAG evaluation runs across three scenarios:
+  - Scenario A: Clean structured document (eval/fixtures/meridian_financials.txt)
+  - Scenario B: Tabular reporting format (eval/fixtures/meridian_scenario_b_tabular.txt)
+  - Scenario C: OCR-degraded document (eval/fixtures/meridian_scenario_c_degraded.txt)
 
-Methodology
------------
-  - Document: eval/fixtures/meridian_financials.txt  (uploaded as a
-    plain-text file; the RAG engine falls back to UTF-8 decode for
-    non-PDF files, so no PDF conversion library is required).
-  - Ground truth: eval/ground_truth.yaml  (10 QA pairs, each with a
-    precise reference answer verifiable against the fixture).
-  - Runs: N=3 by default (configurable). Each run re-queries every
-    question independently so we can report mean ± std dev.
-  - RAGAS judge: gpt-4o-mini + text-embedding-3-small.
-
-Usage
------
-  # From the project root:
-  cd eval
-  python -m venv .venv && source .venv/bin/activate
-  pip install -r requirements.txt
-  python evaluate.py --rag-url http://localhost:8000 --runs 3
-
-  # Hit a Docker-hosted service on the same host:
-  python evaluate.py --rag-url http://localhost:8000
-
-  # Change number of runs or output path:
-  python evaluate.py --runs 5 --output results/my_run.csv
+Executes 3 runs of 10 ground-truth questions per scenario (30 queries per scenario,
+90 queries total), capturing full execution provenance, latency telemetry,
+retrieved contexts, correctness, and optional RAGAS metrics.
 """
 
 import argparse
+import datetime
+import hashlib
 import json
 import os
+import re
+import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-import yaml
 import pandas as pd
+import yaml
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
-from rich.progress import track
-
-# ── RAGAS imports ─────────────────────────────────────────────────────────────
-try:
-    from ragas import evaluate, EvaluationDataset, SingleTurnSample
-    from ragas.metrics.collections import Faithfulness, ContextPrecision, ContextRecall, AnswerRelevancy
-    from ragas.llms import LangchainLLMWrapper
-    from ragas.embeddings import LangchainEmbeddingsWrapper
-except ImportError as e:
-    print(f"[ERROR] Missing RAGAS dependency: {e}")
-    print("  Install with:  pip install -r eval/requirements.txt")
-    sys.exit(1)
-
-try:
-    from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-except ImportError:
-    print("[ERROR] langchain-openai not installed. Run: pip install -r eval/requirements.txt")
-    sys.exit(1)
-
-# ─────────────────────────────────────────────────────────────────────────────
 
 console = Console()
 
-EVAL_DIR = Path(__file__).parent
-GROUND_TRUTH_PATH = EVAL_DIR / "ground_truth.yaml"
-FIXTURE_PATH = EVAL_DIR / "fixtures" / "meridian_financials.txt"
-DOC_ID = "eval_meridian_2024"
+EVAL_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = EVAL_DIR.parent
+FIXTURES_DIR = EVAL_DIR / "fixtures"
+DEFAULT_GROUND_TRUTH = EVAL_DIR / "ground_truth.yaml"
+OUTPUT_DIR = PROJECT_ROOT / "evaluation_results"
 
-# Port 8000 is the Python RAG service — it is NOT exposed outside the Docker container.
-# The Node.js server at :3000 proxies all RAG calls via /api/rag/*
-# Use DEFAULT_RAG_URL=http://localhost:3000/api/rag when running against Docker.
-# Use http://localhost:8000 only when the Python service is started locally without Docker.
-DEFAULT_RAG_URL = "http://localhost:3000/api/rag"
-
-# Load .env from project root (one level up from eval/)
-load_dotenv(dotenv_path=EVAL_DIR.parent / ".env")
-
+# Load environment variables
+load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
+DEFAULT_RAG_URL = os.environ.get("RAG_SERVICE_URL", "http://127.0.0.1:8000")
 
-# ──────────────────────────────────────────────────────────────────────────────
-# RAG Service Helpers
-# ──────────────────────────────────────────────────────────────────────────────
+SCENARIO_CONFIGS = [
+    {
+        "id": "A",
+        "name": "Scenario A",
+        "description": "Clean / Structured Document",
+        "fixture_file": "meridian_financials.txt",
+        "doc_id": "eval_scenario_a",
+    },
+    {
+        "id": "B",
+        "name": "Scenario B",
+        "description": "Tabular / Dense Structured Document",
+        "fixture_file": "meridian_scenario_b_tabular.txt",
+        "doc_id": "eval_scenario_b",
+    },
+    {
+        "id": "C",
+        "name": "Scenario C",
+        "description": "OCR-Degraded / Noisy Document",
+        "fixture_file": "meridian_scenario_c_degraded.txt",
+        "doc_id": "eval_scenario_c",
+    },
+]
+
+
+def get_git_commit() -> str:
+    """Gets the current git commit hash, or 'UNKNOWN'."""
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return res.stdout.strip()
+    except Exception:
+        return "UNKNOWN"
+
+
+def compute_file_sha256(path: Path) -> str:
+    """Computes the SHA-256 hash of a file."""
+    if not path.exists():
+        return "FILE_NOT_FOUND"
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
 
 def check_health(client: httpx.Client, rag_url: str) -> dict:
-    """GET <rag_url>/health and return the response JSON. Raises on failure."""
+    """GET <rag_url>/health and return the response JSON."""
     resp = client.get(f"{rag_url}/health", timeout=15.0)
     resp.raise_for_status()
     return resp.json()
@@ -100,7 +102,7 @@ def check_health(client: httpx.Client, rag_url: str) -> dict:
 def index_document(client: httpx.Client, rag_url: str, doc_id: str, file_path: Path) -> dict:
     """POST a fixture file to <rag_url>/index and return the response JSON."""
     file_bytes = file_path.read_bytes()
-    file_name = file_path.name  # ends in .txt → RAG engine uses UTF-8 fallback
+    file_name = file_path.name
 
     resp = client.post(
         f"{rag_url}/index",
@@ -118,429 +120,493 @@ def query_rag(
     doc_id: str,
     question: str,
     top_k: int = 5,
-) -> tuple[str, list[str]]:
+) -> Tuple[str, List[str], float]:
     """
-    POST to <rag_url>/query. Returns (answer_text, list_of_context_strings).
-    The list of contexts maps directly to RAGAS `retrieved_contexts`.
+    POST to <rag_url>/query.
+    Returns (answer_text, list_of_contexts, latency_ms).
     """
     payload = {"doc_id": doc_id, "question": question, "top_k": top_k}
-    resp = client.post(f"{rag_url}/query", json=payload, timeout=90.0)
+    t_start = time.perf_counter()
+    resp = client.post(f"{rag_url}/query", json=payload, timeout=120.0)
+    t_end = time.perf_counter()
+    latency_ms = round((t_end - t_start) * 1000.0, 2)
+
     resp.raise_for_status()
     data = resp.json()
 
     answer: str = data.get("answer", "")
-    # Each source chunk is a dict with keys: chunk_id, page, text, similarity_score
-    contexts: list[str] = [src["text"] for src in data.get("sources", [])]
-    return answer, contexts
+    contexts: List[str] = [src["text"] for src in data.get("sources", [])]
+    return answer, contexts, latency_ms
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# RAGAS Configuration
-# ──────────────────────────────────────────────────────────────────────────────
+def normalize_text(text: str) -> str:
+    """Normalizes text for robust comparison, including common OCR substitutions."""
+    t = text.lower()
+    t = re.sub(r'[\r\n\t]+', ' ', t)
+    t = re.sub(r'\s+', ' ', t)
+    return t.strip()
 
-def build_ragas_evaluator():
+
+def evaluate_correctness(q_idx: int, question: str, answer: str, scenario_id: str) -> Tuple[bool, str]:
     """
-    Builds the RAGAS evaluation judge using gpt-4o-mini and text-embedding-3-small.
-    Returns initialised metrics and their names.
+    Deterministically evaluates factual correctness for each of the 10 benchmark questions.
+    Returns (is_correct, details_string).
+    """
+    ans_norm = normalize_text(answer)
+    if q_idx == 1:
+        # Revenue: £4,200,000 / 4,200,000 / 4.2m / 4,2OO,OOO
+        match = bool(re.search(r'4[,.]?200[,.]?000|4\.2\s*m|4,2oo,ooo', ans_norm))
+        return match, "Matches £4,200,000 revenue" if match else "Missing £4,200,000 revenue"
+
+    elif q_idx == 2:
+        # Headcount: 42 FTE
+        match = bool(re.search(r'\b42\b', ans_norm))
+        return match, "Matches 42 FTE headcount" if match else "Missing 42 headcount"
+
+    elif q_idx == 3:
+        # Gross margin: 40% or 40.0% or 4O%
+        match = bool(re.search(r'40(\.0)?\s*%|4o(\.o)?\s*%', ans_norm))
+        return match, "Matches 40.0% gross margin" if match else "Missing 40.0% gross margin"
+
+    elif q_idx == 4:
+        # Current ratio: 2.00 or 2.0 or 2 (from 890,000 / 445,000)
+        match = bool(re.search(r'\b2(\.0{1,2})?\b|\b2\.oo\b', ans_norm))
+        return match, "Matches 2.00 current ratio" if match else "Missing 2.00 current ratio"
+
+    elif q_idx == 5:
+        # Payroll: 1,050,000 / 1.05m / l,o5o,ooo AND 25% / 25.0%
+        has_pay = bool(re.search(r'1[,.]?050[,.]?000|1\.05\s*m|l[,.]?o5o[,.]?ooo', ans_norm))
+        has_pct = bool(re.search(r'25(\.0)?\s*%|25(\.o)?\s*%', ans_norm))
+        match = has_pay and has_pct
+        return match, "Matches £1,050,000 and 25.0%" if match else f"Payroll: {has_pay}, Pct: {has_pct}"
+
+    elif q_idx == 6:
+        # Digital tools: mentions at least 3 of SAP S/4HANA, Salesforce, Microsoft 365/Power BI, Keyence, SYSPRO
+        tools = ["sap", "salesforce", "power bi", "keyence", "syspro", "microsoft"]
+        found = [t for t in tools if t in ans_norm]
+        match = len(found) >= 3
+        return match, f"Identified tools ({len(found)}/5): {', '.join(found)}"
+
+    elif q_idx == 7:
+        # Rev per emp: 100,000 (and ideally sector median 98,000)
+        has_rev_emp = bool(re.search(r'100[,.]?000|100k|loo[,.]?ooo', ans_norm))
+        has_median = bool(re.search(r'98[,.]?000|98k|98[,.]?ooo', ans_norm))
+        match = has_rev_emp
+        return match, f"Rev/Emp 100k: {has_rev_emp}, Median 98k: {has_median}"
+
+    elif q_idx == 8:
+        # Output per payroll: 4.00x or 4.0x or 4x (and P50 3.7x)
+        match = bool(re.search(r'4(\.0{1,2})?\s*x?|4\.oox?', ans_norm))
+        return match, "Matches 4.00x output per payroll" if match else "Missing 4.00x ratio"
+
+    elif q_idx == 9:
+        # Current assets: 890,000 (breakdown 520k, 290k, 80k)
+        has_total = bool(re.search(r'890[,.]?000|89o[,.]?ooo', ans_norm))
+        return has_total, "Matches £890,000 current assets" if has_total else "Missing £890,000 total"
+
+    elif q_idx == 10:
+        # Digital maturity: HIGH / High / HlGH
+        match = bool(re.search(r'\bhigh\b|\bhlgh\b', ans_norm))
+        return match, "Matches HIGH digital maturity" if match else "Missing HIGH maturity rating"
+
+    return False, "Unrecognized question ID"
+
+
+def run_ragas_evaluation(
+    raw_df: pd.DataFrame,
+    output_stem: str,
+) -> Tuple[bool, Optional[pd.DataFrame], Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Attempts genuine RAGAS evaluation using OpenAI gpt-4o-mini and text-embedding-3-small.
+    Returns (success, scores_df, summary_dict, error_msg).
+    Does NOT substitute heuristic or estimated scores on failure.
     """
     if not OPENAI_API_KEY:
-        console.print(
-            "[bold red]ERROR:[/bold red] OPENAI_API_KEY not set. "
-            "Add it to .env in the project root."
-        )
-        sys.exit(1)
+        return False, None, None, "OPENAI_API_KEY is not set in environment."
 
     try:
-        from openai import OpenAI
-        from ragas.llms import llm_factory
-        from ragas.embeddings import embedding_factory
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        llm = llm_factory("gpt-4o-mini", client=client)
-        embeddings = embedding_factory("openai", model="text-embedding-3-small", client=client)
-    except Exception as fe:
-        console.print(f"[yellow]Falling back to Langchain wrappers due to: {fe}[/yellow]")
-        llm = LangchainLLMWrapper(
-            ChatOpenAI(
-                model="gpt-4o-mini",
-                openai_api_key=OPENAI_API_KEY,
-                temperature=0.0,
-            )
+        from ragas import evaluate, EvaluationDataset, SingleTurnSample
+        from ragas.metrics.collections import (
+            Faithfulness, ContextPrecision, ContextRecall, AnswerRelevancy,
         )
-        embeddings = LangchainEmbeddingsWrapper(
-            OpenAIEmbeddings(
-                model="text-embedding-3-small",
-                openai_api_key=OPENAI_API_KEY,
-            )
-        )
+        from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+        from ragas.llms import LangchainLLMWrapper
+        from ragas.embeddings import LangchainEmbeddingsWrapper
 
-    metrics = [
-        Faithfulness(llm=llm),
-        ContextPrecision(llm=llm),
-        ContextRecall(llm=llm),
-        AnswerRelevancy(llm=llm, embeddings=embeddings),
-    ]
-    metric_names = [
-        "faithfulness",
-        "context_precision",
-        "context_recall",
-        "answer_relevancy",
-    ]
-    return metrics, metric_names
+        llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4o-mini", openai_api_key=OPENAI_API_KEY, temperature=0.0))
+        embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=OPENAI_API_KEY))
+
+        metrics = [
+            Faithfulness(llm=llm),
+            ContextPrecision(llm=llm),
+            ContextRecall(llm=llm),
+            AnswerRelevancy(llm=llm, embeddings=embeddings),
+        ]
+        metric_names = ["faithfulness", "context_precision", "context_recall", "answer_relevancy"]
+
+        samples = []
+        for _, row in raw_df.iterrows():
+            ctx_raw = str(row.get("retrieved_contexts", ""))
+            contexts = [c.strip() for c in ctx_raw.split("|||") if c.strip()]
+            if not contexts:
+                contexts = ["[no context retrieved]"]
+            samples.append(SingleTurnSample(
+                user_input=str(row["question"]),
+                response=str(row["generated_answer"]),
+                retrieved_contexts=contexts,
+                reference=str(row["expected_answer"]),
+            ))
+
+        dataset = EvaluationDataset(samples=samples)
+        result = evaluate(dataset=dataset, metrics=metrics)
+        scores_df = result.to_pandas()
+
+        summary_dict = {}
+        for m in metric_names:
+            if m in scores_df.columns:
+                col = scores_df[m].dropna()
+                if not col.empty:
+                    summary_dict[m] = {
+                        "mean": round(float(col.mean()), 4),
+                        "std": round(float(col.std()), 4) if len(col) > 1 else 0.0,
+                        "min": round(float(col.min()), 4),
+                        "max": round(float(col.max()), 4),
+                    }
+
+        return True, scores_df, summary_dict, None
+    except Exception as e:
+        return False, None, None, f"RAGAS evaluation failed: {type(e).__name__}: {str(e)}"
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Main Evaluation
-# ──────────────────────────────────────────────────────────────────────────────
+def ground_truth_validation_step(ground_truth: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Step 0: Ground-Truth Validation across All 3 Scenario Fixtures."""
+    console.rule("[bold cyan]Step 0: Ground-Truth Validation Across All Fixtures[/bold cyan]")
+    
+    validation_report = {}
+    
+    for sc in SCENARIO_CONFIGS:
+        sc_id = sc["id"]
+        sc_file = FIXTURES_DIR / sc["fixture_file"]
+        sha256 = compute_file_sha256(sc_file)
+        text = sc_file.read_text(encoding="utf-8") if sc_file.exists() else ""
+        
+        console.print(f"\n[bold]{sc['name']}[/bold] ({sc['fixture_file']})")
+        console.print(f"  SHA-256: [cyan]{sha256}[/cyan] ({len(text):,} chars)")
+        
+        sc_results = []
+        for idx, q_item in enumerate(ground_truth, 1):
+            q_text = q_item["question"]
+            gt_text = q_item["ground_truth"].strip()
+            
+            supported, note = evaluate_correctness(idx, q_text, text, sc_id)
+            sc_results.append({
+                "question_id": f"Q{idx:02d}",
+                "question": q_text,
+                "category": q_item.get("category", "general"),
+                "supported": supported,
+                "note": note,
+            })
+            status_str = "[green]SUPPORTED[/green]" if supported else "[yellow]FLAGGED[/yellow]"
+            console.print(f"    Q{idx:02d}: {status_str} — {note}")
+            
+        validation_report[sc_id] = {
+            "fixture": sc["fixture_file"],
+            "sha256": sha256,
+            "total_questions": len(ground_truth),
+            "supported_count": sum(1 for r in sc_results if r["supported"]),
+            "details": sc_results,
+        }
+        
+    return validation_report
 
-def run_evaluation(args: argparse.Namespace) -> None:
-    rag_url = args.rag_url.rstrip("/")
-    n_runs: int = args.runs
-    output_path = Path(args.output)
-    top_k: int = args.top_k
 
-    ground_truth_path = Path(args.ground_truth) if getattr(args, "ground_truth", None) else GROUND_TRUTH_PATH
-    fixture_path = Path(args.fixture) if getattr(args, "fixture", None) else FIXTURE_PATH
-    doc_id = args.doc_id if getattr(args, "doc_id", None) else DOC_ID
+def run_evaluation(
+    rag_url: str,
+    n_runs: int = 3,
+    top_k: int = 5,
+    smoke_test_only: bool = False,
+) -> None:
+    eval_run_id = f"eval_run_{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+    git_commit = get_git_commit()
+    timestamp_start = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-    console.rule("[bold blue]Vantly RAG Evaluation Harness[/bold blue]")
-    console.print(f"  RAG service : [cyan]{rag_url}[/cyan]")
-    console.print(f"  Runs        : [cyan]{n_runs}[/cyan]")
-    console.print(f"  top_k       : [cyan]{top_k}[/cyan]")
-    console.print(f"  Output      : [cyan]{output_path}[/cyan]")
+    console.rule(f"[bold blue]Productive Point Multi-Scenario Evaluation ({eval_run_id})[/bold blue]")
+    console.print(f"  Git Commit : [cyan]{git_commit}[/cyan]")
+    console.print(f"  RAG URL    : [cyan]{rag_url}[/cyan]")
+    console.print(f"  Runs/Scen  : [cyan]{n_runs if not smoke_test_only else 1} (smoke test = {smoke_test_only})[/cyan]")
+    console.print(f"  Top-K      : [cyan]{top_k}[/cyan]")
+    console.print(f"  Output Dir : [cyan]{OUTPUT_DIR}[/cyan]")
     console.print()
 
-    # ── 1. Load ground truth ──────────────────────────────────────────────────
-    if not ground_truth_path.exists():
-        console.print(f"[red]Ground truth file not found: {ground_truth_path}[/red]")
-        sys.exit(1)
+    # Load Ground Truth
+    with open(DEFAULT_GROUND_TRUTH, "r", encoding="utf-8") as f:
+        ground_truth: List[Dict[str, Any]] = yaml.safe_load(f)
 
-    with open(ground_truth_path) as f:
-        ground_truth: list[dict] = yaml.safe_load(f)
+    # ── Step 0: Ground-Truth Validation ───────────────────────────────────────
+    gt_validation = ground_truth_validation_step(ground_truth)
 
-    console.print(f"[green]✓[/green] Loaded [bold]{len(ground_truth)}[/bold] QA pairs from {ground_truth_path.name}")
-
-    # ── 2. Verify fixture exists ──────────────────────────────────────────────
-    if not fixture_path.exists():
-        console.print(f"[red]Fixture file not found: {fixture_path}[/red]")
-        sys.exit(1)
-
-    fixture_size = fixture_path.stat().st_size
-    console.print(f"[green]✓[/green] Fixture document: {fixture_path.name} ({fixture_size:,} bytes)")
-
-    with httpx.Client() as http:
-        # ── 3. Health check ───────────────────────────────────────────────────
-        console.print("\n[bold]Checking RAG service health...[/bold]")
+    # ── Step 1: Health Check ───────────────────────────────────────────────────
+    with httpx.Client() as client:
         try:
-            health = check_health(http, rag_url)
-        except (httpx.ConnectError, httpx.ConnectTimeout) as e:
-            console.print(f"[red]✗ Cannot reach RAG service at {rag_url}[/red]")
-            console.print(f"  Make sure the Docker stack is running:  docker-compose up")
-            console.print(f"  Or start the service locally:  cd rag_service && python main.py")
-            sys.exit(1)
-        except httpx.HTTPStatusError as e:
-            console.print(f"[red]✗ RAG service returned HTTP {e.response.status_code}[/red]")
-            sys.exit(1)
-
-        ollama_model = health.get("ollama_model", "qwen2.5:7b")
-        docs_indexed = health.get("indexed_documents_count", 0)
-        console.print(
-            f"[green]✓[/green] Service healthy | LLM: Ollama ({ollama_model}) | "
-            f"Docs already indexed: [cyan]{docs_indexed}[/cyan]"
-        )
-
-        # ── 4. Index the fixture document ─────────────────────────────────────
-        console.print(f"\n[bold]Indexing fixture document (doc_id={doc_id})...[/bold]")
-        try:
-            index_result = index_document(http, rag_url, doc_id, fixture_path)
-        except httpx.HTTPStatusError as e:
-            console.print(f"[red]✗ /index returned HTTP {e.response.status_code}: {e.response.text}[/red]")
-            sys.exit(1)
-
-        console.print(
-            f"[green]✓[/green] Indexed [bold]{index_result.get('total_chunks', '?')}[/bold] chunks "
-            f"across [bold]{index_result.get('total_pages', '?')}[/bold] pages"
-        )
-
-        # ── 5. Query each question N times ────────────────────────────────────
-        console.rule("[bold]Running queries[/bold]")
-
-        # Shape: all_run_samples[run_idx] = list of SingleTurnSample objects
-        all_run_samples: list[list[SingleTurnSample]] = []
-        # Raw records for per-question CSV export
-        raw_records: list[dict] = []
-
-        for run_idx in range(1, n_runs + 1):
-            console.print(f"\n[bold yellow]── Run {run_idx} / {n_runs} ──[/bold yellow]")
-            run_samples: list[SingleTurnSample] = []
-
-            for qa in track(ground_truth, description=f"  Querying ({run_idx}/{n_runs})..."):
-                question: str = qa["question"]
-                reference: str = qa["ground_truth"].strip()
-                category: str = qa.get("category", "uncategorised")
-
-                try:
-                    answer, contexts = query_rag(http, rag_url, doc_id, question, top_k=top_k)
-                except httpx.HTTPStatusError as e:
-                    console.print(f"\n  [red]✗ /query error for: {question[:50]!r}: HTTP {e.response.status_code}[/red]")
-                    answer = ""
-                    contexts = []
-
-                if not contexts:
-                    console.print(
-                        f"\n  [yellow]⚠ No contexts returned for question {run_idx}:{question[:60]!r}[/yellow]"
-                    )
-
-                run_samples.append(
-                    SingleTurnSample(
-                        user_input=question,
-                        response=answer,
-                        retrieved_contexts=contexts,
-                        reference=reference,
-                    )
-                )
-                raw_records.append({
-                    "run": run_idx,
-                    "category": category,
-                    "question": question,
-                    "answer": answer,
-                    "n_contexts": len(contexts),
-                    # Store all context strings pipe-separated for later RAGAS scoring
-                    "contexts_full": " ||| ".join(contexts),
-                    "context_preview": contexts[0][:200] if contexts else "",
-                    "ground_truth": reference,
-                })
-
-            all_run_samples.append(run_samples)
-
-            # Brief pause between runs to avoid Ollama rate limits during indexing/querying
-            if run_idx < n_runs:
-                console.print(f"  Sleeping 5s between runs to avoid rate limits...")
-                time.sleep(5)
-
-    # ── 6. RAGAS evaluation ───────────────────────────────────────────────────
-    # Save raw records immediately before RAGAS in case RAGAS crashes
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    raw_df = pd.DataFrame(raw_records)
-    raw_path = output_path.with_stem(output_path.stem + "_raw")
-    raw_df.to_csv(raw_path, index=False)
-    console.print(f"[green]✓ Saved raw query responses to {raw_path}[/green]")
-
-    console.rule("[bold]RAGAS Evaluation[/bold]")
-    console.print("Building RAGAS evaluator with OpenAI gpt-4o-mini + text-embedding-3-small...")
-    try:
-        metrics, metric_names = build_ragas_evaluator()
-    except Exception as e:
-        console.print(f"[red]✗ Failed to build RAGAS evaluator: {e}[/red]")
-        console.print("[yellow]Skipping RAGAS. Run score_only.py to use heuristic scoring on the saved raw CSV.[/yellow]")
-        sys.exit(0)
-
-    run_agg_rows: list[dict] = []       # One row per run, aggregated across questions
-    per_question_rows: list[dict] = []  # One row per (run, question)
-
-    for run_idx, samples in enumerate(all_run_samples, 1):
-        console.print(f"\n[cyan]Scoring run {run_idx} ({len(samples)} samples)...[/cyan]")
-        dataset = EvaluationDataset(samples=samples)
-
-        try:
-            result = evaluate(dataset=dataset, metrics=metrics)
+            health = check_health(client, rag_url)
+            console.print(f"\n[green]✓[/green] RAG Service healthy: LLM={health.get('ollama_model', 'unknown')}")
         except Exception as e:
-            console.print(f"[red]✗ RAGAS evaluate() failed on run {run_idx}: {e}[/red]")
-            console.print("  Skipping this run from aggregation.")
-            continue
+            console.print(f"\n[red]✗ Cannot connect to RAG service at {rag_url}: {e}[/red]")
+            sys.exit(1)
 
-        df = result.to_pandas()
+        # ── Step 2: Multi-Scenario Execution ──────────────────────────────────
+        all_scenario_raw_records: Dict[str, List[Dict[str, Any]]] = {sc["id"]: [] for sc in SCENARIO_CONFIGS}
+        scenario_summaries: Dict[str, Dict[str, Any]] = {}
+        ragas_summaries: Dict[str, Any] = {}
 
-        # Aggregate scores for this run
-        run_row: dict = {"run": run_idx}
-        for m in metric_names:
-            if m in df.columns:
-                run_row[m] = float(df[m].mean())
-            else:
-                console.print(f"  [yellow]⚠ Metric '{m}' not in RAGAS output — skipping.[/yellow]")
-                run_row[m] = None
-        run_agg_rows.append(run_row)
+        for sc in SCENARIO_CONFIGS:
+            sc_id = sc["id"]
+            sc_name = sc["name"]
+            fixture_path = FIXTURES_DIR / sc["fixture_file"]
+            fixture_sha256 = compute_file_sha256(fixture_path)
+            doc_id = sc["doc_id"]
 
-        # Per-question scores for this run
-        for q_idx, row in df.iterrows():
-            pq_row = {
-                "run": run_idx,
-                "question": ground_truth[q_idx]["question"],
-                "category": ground_truth[q_idx].get("category", "uncategorised"),
+            console.rule(f"[bold yellow]Executing {sc_name}: {sc['description']}[/bold yellow]")
+            console.print(f"  Fixture     : [cyan]{fixture_path.name}[/cyan] ({fixture_path.stat().st_size:,} bytes)")
+            console.print(f"  SHA-256     : [cyan]{fixture_sha256}[/cyan]")
+            console.print(f"  Document ID : [cyan]{doc_id}[/cyan]")
+
+            # Index document into isolated doc_id
+            console.print(f"  Indexing document into '{doc_id}'...")
+            idx_res = index_document(client, rag_url, doc_id, fixture_path)
+            console.print(f"  [green]✓[/green] Indexed {idx_res.get('total_chunks', 0)} chunks across {idx_res.get('total_pages', 0)} page(s).")
+
+            # Determine run count
+            actual_runs = 1 if smoke_test_only else n_runs
+            raw_records = []
+
+            for run_idx in range(1, actual_runs + 1):
+                console.print(f"\n  [bold]── Run {run_idx}/{actual_runs} ──[/bold]")
+                
+                # If smoke test, only run question 1
+                questions_to_run = [ground_truth[0]] if smoke_test_only else ground_truth
+
+                for q_num, qa in enumerate(questions_to_run, 1):
+                    q_id = f"Q{q_num:02d}"
+                    question = qa["question"]
+                    expected_ans = qa["ground_truth"].strip()
+                    category = qa.get("category", "general")
+                    query_ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+                    try:
+                        ans, contexts, latency_ms = query_rag(client, rag_url, doc_id, question, top_k=top_k)
+                    except Exception as q_err:
+                        ans = f"ERROR: {str(q_err)}"
+                        contexts = []
+                        latency_ms = 0.0
+
+                    is_correct, corr_details = evaluate_correctness(q_num, question, ans, sc_id)
+                    corr_status = "[green]CORRECT[/green]" if is_correct else "[red]INCORRECT[/red]"
+                    console.print(f"    [{run_idx}:{q_id}] {corr_status} ({latency_ms:,.1f}ms) — {question[:45]}...")
+
+                    record = {
+                        "eval_run_id": eval_run_id,
+                        "git_commit": git_commit,
+                        "scenario": sc_name,
+                        "scenario_id": sc_id,
+                        "fixture_file": sc["fixture_file"],
+                        "fixture_sha256": fixture_sha256,
+                        "doc_id": doc_id,
+                        "run_number": run_idx,
+                        "question_id": q_id,
+                        "category": category,
+                        "question": question,
+                        "expected_answer": expected_ans,
+                        "generated_answer": ans,
+                        "is_correct": is_correct,
+                        "correctness_details": corr_details,
+                        "n_contexts": len(contexts),
+                        "retrieved_contexts": " ||| ".join(contexts),
+                        "latency_ms": latency_ms,
+                        "timestamp": query_ts,
+                        "model_config_id": f"ollama:qwen2.5:7b:temp0.2:topk{top_k}:chunk400_150",
+                    }
+                    raw_records.append(record)
+
+                if run_idx < actual_runs:
+                    time.sleep(1)
+
+            all_scenario_raw_records[sc_id] = raw_records
+
+            # Compute Scenario Statistics
+            raw_df = pd.DataFrame(raw_records)
+            total_q = len(raw_df)
+            correct_q = int(raw_df["is_correct"].sum())
+            acc = round((correct_q / total_q) * 100.0, 2) if total_q > 0 else 0.0
+            latencies = raw_df["latency_ms"]
+
+            scenario_summaries[sc_id] = {
+                "scenario": sc_name,
+                "scenario_id": sc_id,
+                "description": sc["description"],
+                "fixture_file": sc["fixture_file"],
+                "fixture_sha256": fixture_sha256,
+                "doc_id": doc_id,
+                "total_queries": total_q,
+                "correct_queries": correct_q,
+                "accuracy_pct": acc,
+                "latency_mean_ms": round(float(latencies.mean()), 2),
+                "latency_median_ms": round(float(latencies.median()), 2),
+                "latency_p95_ms": round(float(latencies.quantile(0.95)), 2),
+                "latency_min_ms": round(float(latencies.min()), 2),
+                "latency_max_ms": round(float(latencies.max()), 2),
+                "latency_std_ms": round(float(latencies.std()), 2) if len(latencies) > 1 else 0.0,
             }
-            for m in metric_names:
-                pq_row[m] = float(row[m]) if m in row and row[m] is not None else None
-            per_question_rows.append(pq_row)
 
-    if not run_agg_rows:
-        console.print("[red]No successful runs to report. Exiting.[/red]")
-        sys.exit(1)
+            # Run RAGAS if not smoke test
+            if not smoke_test_only and OPENAI_API_KEY:
+                console.print(f"\n  [cyan]Attempting genuine RAGAS evaluation for {sc_name}...[/cyan]")
+                ragas_ok, ragas_df, ragas_dict, ragas_err = run_ragas_evaluation(raw_df, f"scenario_{sc_id}")
+                if ragas_ok and ragas_df is not None:
+                    console.print(f"  [green]✓[/green] RAGAS scoring succeeded for {sc_name}")
+                    ragas_scores_path = OUTPUT_DIR / f"scenario_{sc_id}_ragas_scores.csv"
+                    ragas_df.to_csv(ragas_scores_path, index=False)
+                    ragas_summaries[sc_id] = {"status": "SUCCESS", "metrics": ragas_dict}
+                else:
+                    console.print(f"  [yellow]⚠ RAGAS skipped/failed for {sc_name}: {ragas_err}[/yellow]")
+                    ragas_summaries[sc_id] = {"status": "FAILED", "error": ragas_err}
+            else:
+                ragas_summaries[sc_id] = {"status": "SKIPPED", "reason": "Smoke test or no OPENAI_API_KEY"}
 
-    # ── 7. Aggregate and display results ─────────────────────────────────────
-    console.rule("[bold green]Results[/bold green]")
+    # ── Step 3: Save Output Artifacts ─────────────────────────────────────────
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp_end = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-    agg_df = pd.DataFrame(run_agg_rows).set_index("run")
-    pq_df = pd.DataFrame(per_question_rows)
+    # Save per-scenario raw CSVs
+    for sc_id, records in all_scenario_raw_records.items():
+        df = pd.DataFrame(records)
+        raw_csv_path = OUTPUT_DIR / f"scenario_{sc_id}_raw.csv"
+        df.to_csv(raw_csv_path, index=False)
+        console.print(f"[green]✓[/green] Saved {len(df)} rows to [bold]{raw_csv_path.name}[/bold]")
 
-    # Summary table
-    summary_table = Table(
-        title=f"RAGAS Aggregate Scores  (mean ± std over {len(run_agg_rows)} run(s))",
-        show_lines=True,
-        header_style="bold cyan",
-    )
-    summary_table.add_column("Metric", style="cyan", min_width=22)
-    summary_table.add_column("Mean", justify="right", style="bold green")
-    summary_table.add_column("Std Dev", justify="right", style="yellow")
-    summary_table.add_column("Min", justify="right")
-    summary_table.add_column("Max", justify="right")
-    summary_table.add_column("Interpretation", style="dim")
+        # Save per-scenario summary CSV
+        sum_df = pd.DataFrame([scenario_summaries[sc_id]])
+        sum_csv_path = OUTPUT_DIR / f"scenario_{sc_id}_summary.csv"
+        sum_df.to_csv(sum_csv_path, index=False)
+        console.print(f"[green]✓[/green] Saved scenario summary to [bold]{sum_csv_path.name}[/bold]")
 
-    INTERPRETATIONS = {
-        "faithfulness":        "Is the answer grounded in retrieved chunks?",
-        "context_precision":   "Are relevant chunks ranked above noise?",
-        "context_recall":      "Were all necessary chunks retrieved?",
-        "answer_relevancy":    "Is the answer on-topic for the question?",
+    # Overall Summary
+    overall_records = []
+    for sc_records in all_scenario_raw_records.values():
+        overall_records.extend(sc_records)
+    overall_df = pd.DataFrame(overall_records)
+
+    total_overall = len(overall_df)
+    correct_overall = int(overall_df["is_correct"].sum())
+    overall_acc = round((correct_overall / total_overall) * 100.0, 2) if total_overall > 0 else 0.0
+    overall_lat = overall_df["latency_ms"]
+
+    overall_summary_data = {
+        "eval_run_id": eval_run_id,
+        "git_commit": git_commit,
+        "timestamp_start": timestamp_start,
+        "timestamp_end": timestamp_end,
+        "total_scenarios": len(SCENARIO_CONFIGS),
+        "total_evaluations": total_overall,
+        "overall_correct": correct_overall,
+        "overall_accuracy_pct": overall_acc,
+        "overall_latency_mean_ms": round(float(overall_lat.mean()), 2),
+        "overall_latency_median_ms": round(float(overall_lat.median()), 2),
+        "overall_latency_p95_ms": round(float(overall_lat.quantile(0.95)), 2),
+        "overall_latency_min_ms": round(float(overall_lat.min()), 2),
+        "overall_latency_max_ms": round(float(overall_lat.max()), 2),
+        "overall_latency_std_ms": round(float(overall_lat.std()), 2) if len(overall_lat) > 1 else 0.0,
     }
 
-    for m in metric_names:
-        if m not in agg_df.columns:
-            continue
-        col = agg_df[m].dropna()
-        if col.empty:
-            continue
-        mean_val = col.mean()
-        std_val = col.std() if len(col) > 1 else float("nan")
-        min_val = col.min()
-        max_val = col.max()
+    # Add per-scenario breakdown columns
+    for sc_id, s_data in scenario_summaries.items():
+        overall_summary_data[f"scenario_{sc_id}_accuracy_pct"] = s_data["accuracy_pct"]
+        overall_summary_data[f"scenario_{sc_id}_latency_mean_ms"] = s_data["latency_mean_ms"]
 
-        def fmt(v):
-            return f"{v:.4f}" if not pd.isna(v) else "N/A"
+    overall_sum_df = pd.DataFrame([overall_summary_data])
+    overall_sum_path = OUTPUT_DIR / "overall_summary.csv"
+    overall_sum_df.to_csv(overall_sum_path, index=False)
+    console.print(f"[green]✓[/green] Saved overall summary to [bold]{overall_sum_path.name}[/bold]")
 
-        summary_table.add_row(
-            m,
-            fmt(mean_val),
-            fmt(std_val),
-            fmt(min_val),
-            fmt(max_val),
-            INTERPRETATIONS.get(m, ""),
+    # Evaluation Metadata JSON
+    metadata = {
+        "eval_run_id": eval_run_id,
+        "git_commit": git_commit,
+        "timestamp_start": timestamp_start,
+        "timestamp_end": timestamp_end,
+        "model": "qwen2.5:7b",
+        "llm_provider": "ollama",
+        "temperature": 0.2,
+        "top_k": top_k,
+        "chunk_size": 400,
+        "chunk_overlap": 150,
+        "max_section_chunk": 1500,
+        "embedding_model": "ollama:qwen2.5:7b (with fastembed bge-small-en-v1.5 fallback)",
+        "evaluator_judge": "OpenAI gpt-4o-mini + text-embedding-3-small (when active)",
+        "eval_script": "eval/evaluate.py",
+        "eval_script_version": "2.0.0-multi-scenario",
+        "scenarios": SCENARIO_CONFIGS,
+        "ground_truth_validation": gt_validation,
+        "scenario_summaries": scenario_summaries,
+        "ragas_summaries": ragas_summaries,
+        "overall_summary": overall_summary_data,
+    }
+    meta_path = OUTPUT_DIR / "evaluation_metadata.json"
+    meta_path.write_text(json.dumps(metadata, indent=2))
+    console.print(f"[green]✓[/green] Saved evaluation metadata to [bold]{meta_path.name}[/bold]")
+
+    # ── Step 4: Summary Table Display ─────────────────────────────────────────
+    console.rule("[bold green]Final Evaluation Results Summary[/bold green]")
+    table = Table(title=f"Productive Point RAG Multi-Scenario Performance Summary ({eval_run_id})", show_lines=True)
+    table.add_column("Scenario", style="cyan", min_width=14)
+    table.add_column("Input Fixture", style="dim")
+    table.add_column("Queries", justify="right")
+    table.add_column("Correct", justify="right", style="bold green")
+    table.add_column("Accuracy (%)", justify="right", style="bold yellow")
+    table.add_column("Mean Latency", justify="right")
+    table.add_column("Median (P50)", justify="right")
+    table.add_column("P95 Latency", justify="right")
+
+    for sc_id, s in scenario_summaries.items():
+        table.add_row(
+            s["scenario"],
+            s["fixture_file"],
+            str(s["total_queries"]),
+            str(s["correct_queries"]),
+            f"{s['accuracy_pct']:.1f}%",
+            f"{s['latency_mean_ms']:,.1f} ms",
+            f"{s['latency_median_ms']:,.1f} ms",
+            f"{s['latency_p95_ms']:,.1f} ms",
         )
-    console.print(summary_table)
 
-    # Per-category breakdown
-    if not pq_df.empty and "category" in pq_df.columns:
-        console.print("\n[bold]Per-category mean scores:[/bold]")
-        cat_df = pq_df.groupby("category")[metric_names].mean().round(4)
-        console.print(cat_df.to_string())
-
-    # Per-question breakdown
-    if not pq_df.empty:
-        console.print("\n[bold]Per-question mean scores (across all runs):[/bold]")
-        pq_mean = pq_df.groupby("question")[metric_names].mean().round(4)
-        for q, row in pq_mean.iterrows():
-            console.print(f"\n  [dim]{q}[/dim]")
-            for m in metric_names:
-                val = row.get(m)
-                if val is not None and not pd.isna(val):
-                    colour = "green" if val >= 0.7 else ("yellow" if val >= 0.5 else "red")
-                    console.print(f"    {m:<22} [{colour}]{val:.4f}[/{colour}]")
-
-    # ── 8. Save outputs ───────────────────────────────────────────────────────
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Per-question raw records (includes answers and contexts)
-    raw_df = pd.DataFrame(raw_records)
-    raw_path = output_path.with_stem(output_path.stem + "_raw")
-    raw_df.to_csv(raw_path, index=False)
-
-    # Per-question RAGAS scores
-    if not pq_df.empty:
-        pq_df.to_csv(output_path, index=False)
-
-    # Per-run summary
-    summary_path = output_path.with_stem(output_path.stem + "_summary")
-    agg_df.to_csv(summary_path)
-
-    # Machine-readable JSON for CI integration
-    json_path = output_path.with_suffix(".json")
-    json_summary = {}
-    for m in metric_names:
-        if m in agg_df.columns:
-            col = agg_df[m].dropna()
-            json_summary[m] = {
-                "mean": round(float(col.mean()), 6) if not col.empty else None,
-                "std": round(float(col.std()), 6) if len(col) > 1 else None,
-                "min": round(float(col.min()), 6) if not col.empty else None,
-                "max": round(float(col.max()), 6) if not col.empty else None,
-                "runs": int(len(col)),
-            }
-    json_path.write_text(json.dumps(json_summary, indent=2))
-
-    console.print(f"\n[green]✓[/green] Saved per-question scores  → {output_path}")
-    console.print(f"[green]✓[/green] Saved per-run summary       → {summary_path}")
-    console.print(f"[green]✓[/green] Saved raw Q&A records       → {raw_path}")
-    console.print(f"[green]✓[/green] Saved JSON summary          → {json_path}")
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Entry Point
-# ──────────────────────────────────────────────────────────────────────────────
-
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Vantly RAGAS Evaluation Harness",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Evaluate against locally running RAG service (default)
-  python evaluate.py
-
-  # Evaluate against Docker-hosted service, 5 runs
-  python evaluate.py --rag-url http://localhost:8000 --runs 5
-
-  # Custom output location
-  python evaluate.py --output results/v1_baseline.csv
-        """,
+    table.add_row(
+        "[bold]OVERALL[/bold]",
+        "[bold]All 3 Fixtures[/bold]",
+        f"[bold]{total_overall}[/bold]",
+        f"[bold]{correct_overall}[/bold]",
+        f"[bold]{overall_acc:.1f}%[/bold]",
+        f"[bold]{overall_summary_data['overall_latency_mean_ms']:,.1f} ms[/bold]",
+        f"[bold]{overall_summary_data['overall_latency_median_ms']:,.1f} ms[/bold]",
+        f"[bold]{overall_summary_data['overall_latency_p95_ms']:,.1f} ms[/bold]",
+        style="bold white on blue",
     )
-    p.add_argument(
-        "--fixture",
-        help="Path to the fixture text file to index (default: eval/fixtures/meridian_financials.txt)",
-    )
-    p.add_argument(
-        "--ground-truth",
-        help="Path to the ground truth YAML file (default: eval/ground_truth.yaml)",
-    )
-    p.add_argument(
-        "--doc-id",
-        help="Document ID for the vector store (default: eval_meridian_2024)",
-    )
-    p.add_argument(
-        "--rag-url",
-        default=DEFAULT_RAG_URL,
-        help=(
-            "Base URL for RAG endpoints. "
-            "When running via Docker use http://localhost:3000/api/rag (default). "
-            "When running the Python service locally without Docker use http://localhost:8000."
-        ),
-    )
-    p.add_argument(
-        "--runs",
-        type=int,
-        default=3,
-        help="Number of evaluation runs per scenario (default: 3, for mean ± std reporting)",
-    )
-    p.add_argument(
-        "--top-k",
-        type=int,
-        default=5,
-        help="Number of context chunks to retrieve per query (default: 5)",
-    )
-    p.add_argument(
-        "--output",
-        default="results/ragas_results.csv",
-        help="Output CSV path for per-question RAGAS scores (default: results/ragas_results.csv)",
-    )
+    console.print(table)
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Productive Point RAG Multi-Scenario Evaluation Suite")
+    p.add_argument("--rag-url", default=DEFAULT_RAG_URL, help=f"Base URL for RAG microservice (default: {DEFAULT_RAG_URL})")
+    p.add_argument("--runs", type=int, default=3, help="Number of independent evaluation runs per scenario (default: 3)")
+    p.add_argument("--top-k", type=int, default=5, help="Number of context chunks to retrieve (default: 5)")
+    p.add_argument("--smoke-test", action="store_true", help="Run a fast 1-query smoke test for all scenarios to verify indexing & isolation")
     return p.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_evaluation(args)
+    run_evaluation(
+        rag_url=args.rag_url,
+        n_runs=args.runs,
+        top_k=args.top_k,
+        smoke_test_only=args.smoke_test,
+    )

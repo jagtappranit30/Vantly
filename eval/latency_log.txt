@@ -1,8 +1,8 @@
-# Vantly Evaluation Harness — Latency Measurement Log
+# Productive Point Evaluation Harness — Latency Measurement Log
 # ==============================================================================
 # Execution Mode: Scripted benchmark harness (automated via eval/evaluate.py & assess_e2e.py)
 # Environment: Apple Silicon M-series (Unified Memory), Local Ollama (qwen2.5:7b)
-# Target Service: Vantly Application Server (:3000) & Python FastAPI RAG Engine (:8000)
+# Target Service: Productive Point Application Server (:3000) & Python FastAPI RAG Engine (:8000)
 # Sample Size: N = 20 scripted query & assessment runs (Full 8K Context Multi-Chunk RAG)
 # Reference: System Benchmark Evaluation
 # ==============================================================================

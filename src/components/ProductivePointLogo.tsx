@@ -1,14 +1,14 @@
 import React from "react";
 
-interface VantlyLogoProps {
+interface ProductivePointLogoProps {
   className?: string;
   size?: number;
 }
 
-export const VantlyLogo: React.FC<VantlyLogoProps> = ({ className = "", size = 40 }) => {
+export const ProductivePointLogo: React.FC<ProductivePointLogoProps> = ({ className = "", size = 40 }) => {
   return (
     <svg
-      id="vantly-logo"
+      id="productive-point-logo"
       className={`select-none ${className}`}
       width={size}
       height={size}
@@ -48,15 +48,14 @@ export const VantlyLogo: React.FC<VantlyLogoProps> = ({ className = "", size = 4
         <rect x="19" y="12" width="3" height="3" rx="0.5" fill="#00d2ff" />
       </g>
 
-      {/* Left Stem of the V */}
+      {/* Left Stem */}
       <path
         d="M 33 28 L 47 28 L 59 82 L 45 82 Z"
         fill="url(#blueStemGrad)"
         filter="url(#logoShadow)"
       />
 
-      {/* Right Stem of the V with Arrowhead */}
-      {/* Combines the slanted body and a sleek modern arrowhead */}
+      {/* Right Stem with Arrowhead */}
       <path
         d="M 45 82 
            L 59 82 
@@ -89,12 +88,9 @@ export const VantlyLogo: React.FC<VantlyLogoProps> = ({ className = "", size = 4
           opacity="0.9"
         />
 
-        {/* Nodes (Circles with transparent center and white border) */}
-        {/* Node 1 */}
+        {/* Nodes */}
         <circle cx="52" cy="70" r="3.5" fill="#0055ff" stroke="white" strokeWidth="2" />
-        {/* Node 2 */}
         <circle cx="64.5" cy="50" r="3.5" fill="#00d2ff" stroke="white" strokeWidth="2" />
-        {/* Node 3 */}
         <circle cx="77" cy="30" r="3.5" fill="#00f5d4" stroke="white" strokeWidth="2" />
       </g>
     </svg>

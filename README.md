@@ -1,664 +1,436 @@
-# Vantly
+# Productive Point AI
 
-**See your business clearly.** Vantly is a full-stack productivity assessment platform for Small-to-Medium Enterprises (SMEs). Upload a financial document (PDF or CSV), and Vantly uses a local LLM to extract key metrics, score your business against sector benchmarks, and deliver actionable recommendations — all running 100% offline on your own hardware.
+**Intelligent, Offline-First SME Productivity Assessment & Document Intelligence Platform**
+
+[![Node Version](https://img.shields.io/badge/node-v20-blue.svg)](https://nodejs.org)
+[![Python Version](https://img.shields.io/badge/python-3.11-brightgreen.svg)](https://python.org)
+[![Docker](https://img.shields.io/badge/docker-ready-cyan.svg)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/license-MSc%20Major%20Project-purple.svg)](#academic-provenance--context)
+
+Productive Point AI is a full-stack financial document analysis, productivity benchmarking, and retrieval-augmented question-answering platform designed specifically for Small and Medium-sized Enterprises (SMEs). Operating on routine accounting exports (PDF or CSV), Productive Point extracts core operational signals, computes a normalised two-pillar Productivity Index against sector benchmarks, and provides interactive document Q&A—all running **100% locally and offline** without external cloud API dependencies or recurring operational costs.
+
+Developed as an MSc Major Project in Computer Science at Nottingham Trent University under a Design Science Research (DSR) methodology.
 
 ---
 
 ## Table of Contents
 
-- [Features](#features)
+- [Executive Summary & Core Features](#executive-summary--core-features)
+- [System Architecture](#system-architecture)
+- [Component Decomposition](#component-decomposition)
+  - [1. Assessment Extraction Pipeline](#1-assessment-extraction-pipeline-apiassess)
+  - [2. Deterministic Scoring Engine](#2-deterministic-scoring-engine)
+  - [3. RAG Question-Answering Microservice](#3-rag-question-answering-microservice-apiragquery)
 - [Tech Stack](#tech-stack)
-- [Architecture Overview](#architecture-overview)
-- [How the Assessment Works (End-to-End Flow)](#how-the-assessment-works-end-to-end-flow)
-- [Frontend (React SPA)](#frontend-react-spa)
-- [Backend (Express.js Server)](#backend-expressjs-server)
-- [Scoring Engine — How Scores Are Calculated](#scoring-engine--how-scores-are-calculated)
-- [RAG Microservice (Python FastAPI)](#rag-microservice-python-fastapi)
-- [Database Layer (PostgreSQL + Drizzle ORM)](#database-layer-postgresql--drizzle-orm)
-- [Authentication & Security](#authentication--security)
-- [Report Export (PDF & Google Docs)](#report-export-pdf--google-docs)
-- [Docker & Deployment](#docker--deployment)
-- [CI/CD Pipeline](#cicd-pipeline)
-- [Evaluation Harness (RAGAS)](#evaluation-harness-ragas)
-- [Project Structure](#project-structure)
+- [Scoring Methodology & Benchmarks](#scoring-methodology--benchmarks)
+- [Security, Authorization & Session Isolation](#security-authorization--session-isolation)
+- [Evaluation Suite & Empirical Findings](#evaluation-suite--empirical-findings)
+  - [90-Query Ground-Truth Benchmark](#layer-1-ground-truth-accuracy-90-query-benchmark)
+  - [RAGAS Faithfulness Evaluation](#layer-2-ragas-retrieval-faithfulness-scenario-a)
+  - [Post-Fix Recommendation Robustness](#layer-3-recommendation-quality-post-fix-robustness)
+  - [System Latency & Trade-Offs](#layer-4-system-latency-profile)
+- [Quick Start Guide](#quick-start-guide)
+  - [Prerequisites (Ollama)](#prerequisites)
+  - [Option A: Docker Compose (Recommended)](#option-a-docker-compose-recommended)
+  - [Option B: Bare-Metal Local Development](#option-b-bare-metal-local-development)
+- [Evaluation Reproduction](#evaluation-reproduction)
 - [API Reference](#api-reference)
-- [Environment Variables](#environment-variables)
-- [Quick Start](#quick-start)
+- [Environment Configuration](#environment-configuration)
+- [Repository Structure](#repository-structure)
+- [Academic Provenance & Research Disclaimers](#academic-provenance--research-disclaimers)
 - [License](#license)
 
 ---
 
-## Features
+## Executive Summary & Core Features
 
-- **AI-Powered Financial Analysis** — Upload income statements, balance sheets, or general ledgers. Vantly uses Ollama (Qwen 2.5 7B by default) to extract revenue, headcount, COGS, payroll, margins, and liquidity figures with anti-hallucination guardrails.
-- **Sector Benchmarking** — Scores are computed against industry-specific percentile benchmarks (Manufacturing, Services, Retail, Other) across labour efficiency and financial health dimensions.
-- **Productivity Index** — A composite 0–100 score combining labour efficiency (revenue per employee, output per payroll) and financial health (gross/operating margins, current ratio).
-- **RAG Document Q&A** — After assessment, ask follow-up questions about your uploaded document. A Python FastAPI microservice chunks, embeds, and retrieves relevant context using cosine similarity, then answers with the LLM.
-- **Google Sign-In & Guest Mode** — Authenticated users get persistent assessment history stored in PostgreSQL. Guest users can run assessments immediately with rate limiting (10 per 15 minutes per IP).
-- **Export Reports** — Download a detailed PDF report locally (via jsPDF) or export directly to Google Docs using the Google Docs API.
-- **Digital Maturity Scoring** — Detects mentions of software tools, ERPs, and bookkeeping platforms in your documents and assigns a digital maturity level (Low / Medium / High).
-- **100% Offline** — All LLM inference runs locally through Ollama. No data leaves your machine.
+- **Multi-Modal Signal Extraction:** Ingests unstandardised SME financial records (PDF/CSV/TXT), executing hybrid deterministic regex pre-parsing coupled with zero-temperature JSON-schema extraction via local Ollama models (`qwen2.5:7b`).
+- **Two-Pillar Productivity Index:** Eliminates numerical LLM hallucinations by isolating scoring into a deterministic mathematical engine computing **Labour Efficiency (0–50)** and **Financial Health (0–50)** against empirical sector percentiles.
+- **Section-Aware RAG Engine:** A dedicated Python FastAPI microservice provides document Q&A using section-aware sliding-window chunking (400 chars, 150 overlap), dense vector embeddings, exhaustive cosine similarity retrieval, and citation-grounded answer generation.
+- **Vector Store Persistence:** Per-document vector stores held in memory for retrieval and persisted atomically to `vector_store.json` for recovery across microservice and container restarts.
+- **Dual-Mode Access Control:** Seamless Google OAuth (Firebase Authentication) with PostgreSQL persistence, alongside rate-limited (10 req/15 min) unauthenticated guest sessions tracked in memory.
+- **Audited Report Export:** Generates client-side formatted PDF summaries (via jsPDF) and server-side synchronized Google Docs reports through OAuth 2.0 Drive/Docs API integration.
+- **Zero-Cloud Data Sovereignty:** 100% on-premises execution ensures confidential enterprise balance sheets and payroll records never transit third-party cloud LLM endpoints.
+
+---
+
+## System Architecture
+
+The platform separates responsibilities across three decoupled layers: a React 19 Single Page Application, a Node.js Express API gateway/scoring server, and a Python FastAPI RAG microservice.
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                   Client Tier: React 19 SPA (Vite + Tailwind)            │
+│                                                                          │
+│  [ UploadForm ]  ──→  [ ResultsDashboard ]  ──→  [ RAGChat Assistant ]  │
+│         │                     │                         │                │
+│    POST /api/assess       GET /api/history          POST /api/rag/query  │
+└─────────┬─────────────────────┬─────────────────────────┬────────────────┘
+          │                     │                         │
+          └─────────────────────┼─────────────────────────┘
+                                │ HTTP / REST (Port 3000)
+┌───────────────────────────────▼──────────────────────────────────────────┐
+│                    Gateway & Scoring Tier: Node.js / Express             │
+│                                                                          │
+│  • Memory-Buffered Multer Upload (Max 15MB, Magic Byte %PDF Validation)  │
+│  • Deterministic Pre-Parser (Regex extraction of revenue, COGS, payroll) │
+│  • LLM Schema Extraction via Local Ollama (qwen2.5:7b, temp=0, seed=42)  │
+│  • Deterministic Scoring Engine (Labour Efficiency + Financial Health)   │
+│  • Dual-Mode Auth Middleware (requireAuth / optionalAuth + Ownership)    │
+│  • Auto-Index Dispatch to RAG Microservice                               │
+└───────────────┬──────────────────────────────────────────┬───────────────┘
+                │                                          │
+    Internal SQL│(Port 5432)                    HTTP Proxy│(Port 8000)
+                ▼                                          ▼
+┌───────────────────────────────┐          ┌───────────────────────────────┐
+│     PostgreSQL 15 Container   │          │   Python 3.11 RAG Service     │
+│                               │          │                               │
+│  • users                      │          │  • /extract (pypdf parsing)   │
+│  • assessments (Drizzle ORM)  │          │  • /index   (chunk & embed)   │
+│  • JSONB metrics & benchmarks │          │  • /query   (vector search)   │
+└───────────────────────────────┘          │  • vector_store.json persist  │
+                                           └───────────────┬───────────────┘
+                                                           │
+                                                Local HTTP │ (Port 11434)
+                                                           ▼
+                                           ┌───────────────────────────────┐
+                                           │   Ollama Local LLM Runtime    │
+                                           │                               │
+                                           │  • qwen2.5:7b (Inference)     │
+                                           │  • bge-small-en-v1.5 Fallback │
+                                           └───────────────────────────────┘
+```
+
+---
+
+## Component Decomposition
+
+### 1. Assessment Extraction Pipeline (`/api/assess`)
+1. **File Ingestion & Safety:** Multer receives the uploaded buffer in memory. `validateUploadedFile()` verifies `%PDF` magic bytes or scans CSV headers for binary byte injection.
+2. **Text Extraction:** Native digital streams are parsed via `pypdf.PdfReader` in the RAG microservice. If unreachable, a regex scanner extracts text blocks (`Tj`/`TJ` operators) in `server.ts`.
+3. **Deterministic Pre-Parsing:** `preParseUniversalMetrics()` extracts explicit financial figures using strict regex patterns (`Turnover: £X`, `Headcount: N`).
+4. **LLM Extraction:** Unstructured text is formatted into a strict JSON-schema prompt and passed to Ollama (`temperature: 0.0`, `seed: 42`).
+5. **Null-Coalescing Merge:** Pre-parsed deterministic figures take absolute precedence over LLM extractions (`preParsed.revenue ?? llmResult.revenue ?? null`), preventing hallucination.
+
+### 2. Deterministic Scoring Engine
+- Implemented in `calculateScores()` in `server.ts`.
+- Compares extracted metrics against configured sector percentiles (P25, P50, P75).
+- Applies deterministic clamp functions to compute sub-scores.
+- **Derivation Integrity:** Gross Margin is derived when Revenue and COGS are present; Operating Margin is strictly derived only when explicitly stated to prevent faulty operational assumptions.
+
+### 3. RAG Question-Answering Microservice (`/api/rag/query`)
+- **Section-Aware Chunking:** Segments documents by headers/separators into coherent table sections (max 1500 chars) or applies a sliding window (400 chars, 150 overlap).
+- **Embedding Generation:** Uses Ollama embeddings with automatic fallback to FastEmbed (`BAAI/bge-small-en-v1.5`).
+- **Retrieval & QA Synthesis:** Computes exhaustive cosine similarity across stored vectors, filters chunks below `RAG_MIN_SIMILARITY` (0.25), and prompts Qwen 2.5 7B with strict citation instructions.
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology | Why We Chose It |
-|---|---|---|
-| Frontend | React 19, Tailwind CSS v4, Framer Motion, Recharts, Lucide Icons | Modern SPA with animated transitions and interactive charts |
-| Backend | Express.js, TypeScript, esbuild | Lightweight Node server with type safety; esbuild compiles server.ts for production |
-| Database | PostgreSQL 15 (via Drizzle ORM) | Relational storage for users and assessment history with type-safe queries |
-| Auth | Firebase Authentication (Google OAuth) | Managed auth with ID token verification on the server |
-| RAG Service | Python FastAPI, pypdf, NumPy | Separate microservice for document parsing, chunking, embedding, and vector search |
-| LLM | Ollama (Qwen 2.5:7B) | Runs fully offline on local hardware, no API keys required |
-| Build | Vite (frontend), esbuild (server), Docker Compose | Fast HMR in dev, optimised production bundles |
-| CI/CD | GitHub Actions | Automated typecheck, build verification, and Docker image validation |
+| Layer | Technology | Version / Specification | Rationale & Responsibility |
+| :--- | :--- | :--- | :--- |
+| **Frontend SPA** | React, TypeScript, Vite | React 19, Vite 6, TS 5.8 | Reactive dashboard, interactive charts, dynamic tabs. |
+| **Styling & UI** | Tailwind CSS, Framer Motion | Tailwind v4, Lucide Icons | Responsive layout, dark theme, smooth micro-interactions. |
+| **Visualisation** | Recharts | Recharts 2.x | Benchmark bar comparisons and pillar score distribution. |
+| **API Gateway** | Express.js, Node.js | Node 20 (Bookworm-slim) | REST routing, file validation, rate limiting, RAG proxy. |
+| **ORM & Database** | PostgreSQL, Drizzle ORM | PostgreSQL 15-alpine, Drizzle 0.45 | Type-safe persistence for user profiles and assessment JSONB. |
+| **Authentication** | Firebase Admin / Client SDK | Firebase 12.x | Google OAuth 2.0 token issuance and server-side verification. |
+| **RAG Microservice** | FastAPI, Uvicorn | Python 3.11, FastAPI 0.115+ | Document chunking, vector embeddings, and search retrieval. |
+| **PDF Extraction** | `pypdf` | pypdf 6.x | Native digital PDF glyph and text stream extraction. |
+| **Local LLM Engine**| Ollama | Qwen 2.5 (7B parameters) | Zero-cloud on-premises reasoning, extraction, and QA synthesis. |
+| **Containerisation**| Docker, Docker Compose | Multi-stage Dockerfile | Unified container orchestration with health checks. |
 
 ---
 
-## Architecture Overview
+## Scoring Methodology & Benchmarks
+
+The composite **Productivity Index (0–100)** is calculated as the sum of two equal 50-point pillars:
+
+$$\text{Productivity Index} = \text{Labour Efficiency Score} + \text{Financial Health Score}$$
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                   Browser (React SPA)                    │
-│                                                          │
-│  UploadForm  →  ResultsDashboard  →  RAGChat             │
-│       ↓              ↓                  ↓                │
-│  POST /api/assess  GET /api/history  POST /api/rag/query │
-└──────────────────────┬───────────────────────────────────┘
-                       │ HTTP (port 3000)
-┌──────────────────────▼───────────────────────────────────┐
-│               Express.js Server (server.ts)              │
-│                                                          │
-│  • Receives file upload via multer (in-memory, max 15MB) │
-│  • Validates file signature (magic bytes for PDF)        │
-│  • Extracts text (CSV direct / PDF via RAG /extract)     │
-│  • Deterministic pre-parser for financial metrics        │
-│  • Sends text to Ollama LLM for AI extraction            │
-│  • Merges pre-parsed + LLM results (pre-parsed wins)     │
-│  • Calculates scores against sector benchmarks           │
-│  • Stores results in PostgreSQL (authenticated users)    │
-│  • Auto-indexes document into RAG service                │
-│  • Proxies RAG queries with ownership verification       │
-└────┬──────────────────────────────────┬──────────────────┘
-     │                                  │
-     ▼                                  ▼
-┌─────────────┐              ┌────────────────────┐
-│ PostgreSQL  │              │ Python RAG Service  │
-│   (:5432)   │              │      (:8000)        │
-│             │              │                     │
-│  users      │              │  /extract – text    │
-│  assessments│              │  /index   – chunk   │
-│             │              │             & embed │
-└─────────────┘              │  /query   – vector  │
-                             │             search  │
-                             │  /health            │
-                             └────────┬────────────┘
-                                      │
-                                      ▼
-                             ┌─────────────────┐
-                             │  Ollama (:11434) │
-                             │  qwen2.5:7b      │
-                             └─────────────────┘
+                                    ┌── Revenue per Employee (Max 25 pts)
+        ┌── Labour Efficiency (50) ─┤
+        │                           └── Output per Payroll   (Max 25 pts)
+Index ──┤
+(0-100) │                           ┌── Profit Margin Score  (Max 25 pts)
+        └── Financial Health  (50) ─┤
+                                    └── Liquidity / Current  (Max 25 pts)
+
+[ Separate Diagnostic: Digital Maturity Score (0–100) — Not in Index ]
 ```
 
-**Key design decision:** The Express server acts as the single entry point (port 3000). The Python RAG service runs internally on port 8000 and is *not* exposed to the browser. All RAG requests are proxied through Express, which adds authentication and document ownership checks before forwarding.
+### Configured Prototype Benchmarks (`config/sector_benchmarks.json`)
+
+| Metric | Manufacturing | Services | Retail | Other | Formula / Baseline |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **Revenue / Employee (P50)** | £98,000 | £145,000 | £190,000 | £160,000 | $(\text{Actual} / \text{P50}) \times 12.5$ (clamped 3–25) |
+| **Output / Payroll (P50)** | 3.7x | 3.8x | 5.3x | 4.0x | $(\text{Actual} / \text{P50}) \times 12.5$ (clamped 3–25) |
+| **Gross Margin (P50)** | 35.0% | 55.0% | 28.0% | 38.0% | Margin Sub-score: $(\text{Actual} / \text{P50}) \times 6.25$ |
+| **Operating Margin (P50)** | 12.0% | 18.0% | 6.0% | 10.0% | Margin Sub-score: $(\text{Actual} / \text{P50}) \times 6.25$ |
+| **Current Ratio (Healthy)** | $\ge 1.50$ | $\ge 1.50$ | $\ge 1.50$ | $\ge 1.50$ | 25 pts if $\ge 1.5$; $15 + 20(\text{CR}-1)$ if $1.0\le\text{CR}<1.5$ |
+
+*Note on Missing Data:* When UK micro-entity filings omit headcount or payroll, missing sub-metrics assign an unpenalised baseline score (25.0 points) rather than zero.
 
 ---
 
-## How the Assessment Works (End-to-End Flow)
+## Security, Authorization & Session Isolation
 
-This is the full journey when a user uploads a document:
-
-### Step 1 — Upload & Validation (Frontend → Server)
-The `UploadForm` component collects a file (PDF or CSV), a sector selection (Manufacturing, Services, Retail, Other), and an optional company name. It sends a `multipart/form-data` POST to `/api/assess`.
-
-On the server (`server.ts`), the file goes through validation:
-- **Extension check**: Only `.pdf`, `.csv`, or `.txt` are accepted
-- **Magic byte inspection**: For PDFs, the first 5 bytes must start with `%PDF`
-- **Binary detection for CSVs**: Scans the first 2048 bytes for null bytes to reject binary files disguised as CSV
-- **Size limit**: 15MB enforced by multer
-
-### Step 2 — Text Extraction
-- **CSV files**: Read directly as UTF-8 text
-- **PDF files**: Sent to the Python RAG service's `/extract` endpoint, which uses `pypdf` (`PdfReader`) to extract text page-by-page. If the Python service is unavailable, the server falls back to a regex-based PDF text extractor that looks for `Tj` and `TJ` operators in the raw PDF binary
-
-### Step 3 — Deterministic Pre-Parsing (`preParseUniversalMetrics`)
-Before sending anything to the LLM, the server runs a purely deterministic parser on the extracted text. This parser:
-1. Tries CSV header matching first (e.g., columns named "revenue", "headcount", "cogs")
-2. Then scans line-by-line for `key: value` patterns using keyword matching
-3. Then applies regex patterns for common financial document formats (e.g., `Turnover: £450,000`)
-4. Extracts: revenue, headcount, COGS, payroll, gross margin, operating margin, current assets, current liabilities, company name
-
-**Why?** The deterministic parser always produces the same results for the same input. LLMs can hallucinate numbers, so pre-parsed values always take priority over LLM values.
-
-### Step 4 — LLM Analysis via Ollama
-The document text (capped at 50,000 characters) is sent to Ollama's local API (`/api/generate`) with:
-- **Temperature 0.0** and **seed 42** — makes output deterministic
-- **JSON format mode** — forces the model to return valid JSON
-- **A detailed prompt** with anti-hallucination instructions: "NEVER guess, approximate, estimate, or extrapolate"
-- The prompt asks for: financial metrics, digital tools detected, maturity level, recommendations, and qualitative analysis
-
-The response is parsed using `extractJSONObject()` which handles messy LLM output:
-1. Strips `<think>` tags (from reasoning models)
-2. Removes markdown code fences
-3. Tries `JSON.parse()` directly
-4. Falls back to extracting content between first `{` and last `}`
-5. Sanitises trailing commas and control characters
-
-### Step 5 — Metric Merging
-Pre-parsed values and LLM values are merged using the **null coalescing operator** (`??`):
-```
-revenue = preParsed.revenue ?? llmResult.revenue ?? null
-```
-This means: use the deterministic value if available, fall back to LLM, fall back to null.
-
-Gross margin is calculated deterministically if revenue and COGS are known:
-```
-grossMargin = ((revenue - cogs) / revenue) * 100
-```
-Operating margin is ONLY used if explicitly disclosed — it is never calculated from other values to prevent inaccurate derivations.
-
-### Step 6 — Scoring
-The merged metrics are scored against sector-specific benchmarks (explained in detail below).
-
-### Step 7 — Storage & Indexing
-- **Authenticated users**: The full assessment (metrics + scores + benchmarks) is stored in PostgreSQL via Drizzle ORM
-- **Guest users**: The assessment ID is tracked in an in-memory `Set` for document ownership verification; history is stored client-side in `localStorage`
-- **RAG indexing**: The document is asynchronously sent to the Python RAG service's `/index` endpoint for chunking and embedding (non-blocking — assessment result is returned immediately)
-
-### Step 8 — Response
-The full `AssessmentRun` object is returned to the frontend, which renders the `ResultsDashboard`.
+| Security Layer | Implementation Mechanism | Defensive Behavior |
+| :--- | :--- | :--- |
+| **Authentication** | Firebase Admin SDK (`verifyIdToken`) | Rejects forged bearer tokens with HTTP 401 Unauthorized. |
+| **Authorization** | `verifyDocumentOwnership()` in `server.ts` | Authenticated records verify `assessments.userUid == req.user.uid`. Cross-user access returns HTTP 403. |
+| **Guest Isolation** | In-Memory `guestDocumentIds` Set | Unauthenticated guest assessments are scoped strictly to session IDs generated during active upload. |
+| **Upload Validation** | Magic-Byte Inspection (`validateUploadedFile`) | Rejects disguised binaries or malicious scripts missing `%PDF` header with HTTP 400. |
+| **Rate Limiting** | IP-Keyed Sliding Window | Limits unauthenticated requests to 10 calls per 15 minutes per IP. |
+| **Prompt Hardening** | JSON-Schema Constraints & Cleaners | Strips reasoning fences (`<think>...</think>`), control characters, and ignores prompt injection. |
 
 ---
 
-## Frontend (React SPA)
+## Evaluation Suite & Empirical Findings
 
-The frontend is a single-page React 19 app built with Vite and styled with Tailwind CSS v4.
+The platform was formally benchmarked across four evaluation layers under controlled Design Science Research conditions using three structural variants of a synthetic UK SME (*Meridian Manufacturing Ltd*).
 
-### Components
+### Layer 1: Ground-Truth Accuracy (90-Query Benchmark)
 
-| Component | File | Purpose |
-|---|---|---|
-| **App** | `src/App.tsx` | Root component. Manages auth state, assessment history, routing between upload/results views. Contains the landing page with sign-in / guest mode. |
-| **UploadForm** | `src/components/UploadForm.tsx` | Three-step form: company name input → sector card selector (4 sectors with emoji icons) → drag-and-drop file upload zone. Client-side validation for file type and size. |
-| **ResultsDashboard** | `src/components/ResultsDashboard.tsx` | Tabbed dashboard with 6 tabs: Overview, Labour, Financial, Digital, Justification, RAG Q&A. Contains animated score cards, Recharts bar charts, and action buttons for PDF/Google Docs export. Shows a skeleton loading state with cycling progress messages while the LLM processes. |
-| **RAGChat** | `src/components/RAGChat.tsx` | Chat interface for document Q&A. Shows suggested quick-ask questions, user/bot message bubbles, expandable source citations with page numbers and similarity scores. Communicates with `/api/rag/query`. |
-| **HistoryList** | `src/components/HistoryList.tsx` | Sidebar listing past assessments with company name, date, sector, and productivity score. Supports deletion with confirmation. |
-| **VantlyLogo** | `src/components/VantlyLogo.tsx` | SVG brand logo component with gradient styling. |
+Ten ground-truth financial questions were queried across 3 independent runs per scenario (30 queries per scenario, 90 queries total) using local Qwen 2.5 7B.
 
-### Auth Context (`src/context/AuthContext.tsx`)
-Wraps the app in a Firebase Auth provider. Manages:
-- `onAuthStateChanged` listener for login state
-- `signInWithPopup` for Google OAuth
-- Automatic `getIdToken()` refresh for API calls
-- Stores both the Firebase ID token (for our API) and the Google OAuth access token (for Google Docs export)
-- Google Drive and Google Docs scopes are requested during sign-in
+| Evaluation Condition | Fixture Description | Evaluated Queries | Correct | Refusals / Errors | Accuracy (%) |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Scenario A** | Clean structured prose (`meridian_financials.txt`) | 30 | 30 | 0 | **100.0%** |
+| **Scenario B** | Dense tabular layout (`meridian_scenario_b_tabular.txt`) | 30 | 30 | 0 | **100.0%** |
+| **Scenario C** | Simulated OCR character noise (`meridian_scenario_c_degraded.txt`) | 30 | 27 | 3 | **90.0%** |
+| **Total / Overall** | **Multi-Scenario Benchmark** | **90** | **87** | **3** | **96.7%** |
 
-### State Management
-No external state library — React's `useState` and `useCallback` hooks handle all state. Assessment history is fetched from the API on mount (authenticated) or loaded from `localStorage` (guest mode).
+*Findings:* Zero numerical hallucinations occurred across all 90 queries. The 3 errors in Scenario C occurred exclusively in software inventory classification under heavy character degradation (`l↔1`, `O↔0`).
 
----
+### Layer 2: RAGAS Retrieval Faithfulness (Scenario A)
 
-## Backend (Express.js Server)
+Evaluated on Scenario A using `gpt-4o-mini` as evaluation judge and `text-embedding-3-small` for semantic context alignment:
+- **Context Precision:** `0.983` (Retrieved chunks contained minimal irrelevant noise)
+- **Context Recall:** `0.908` (Retrieved context successfully covered ground-truth facts)
+- **Faithfulness:** `0.801` (Generated claims were mathematically grounded in retrieved text)
+- **Answer Relevancy:** `0.777` (Answers directly addressed user inquiries)
 
-The entire backend is in a single file: `server.ts` (1092 lines). It handles:
+### Layer 3: Recommendation Quality (Post-Fix Robustness)
 
-### File Upload
-- Uses `multer` with in-memory storage (`multer.memoryStorage()`)
-- Files are never written to disk — processed entirely in memory
-- Custom error handler wraps multer to return JSON errors for oversized files
+Following post-evaluation wiring remediation, nine LLM-generated recommendations were evaluated against a 4-dimension rubric (Evidence-Grounded, Score-Consistent, Specific, Actionable; 8 pts max per rec, 72 pts total):
 
-### Guest Rate Limiting
-- In-memory `Map` keyed by IP address
-- 10 requests per 15-minute sliding window per IP
-- Resets automatically when the window expires
-- Only applied to unauthenticated requests
+| Condition | Recommendations Evaluated | Total Points Scored | Max Points | Quality Score (%) | Source Status |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Scenario A (Clean)** | 3 | 18 | 24 | **75.0%** | 100% LLM Generated |
+| **Scenario B (Tabular)** | 3 | 17 | 24 | **70.8%** | 100% LLM Generated |
+| **Scenario C (OCR Noise)**| 3 | 20 | 24 | **83.3%** | 100% LLM Generated |
+| **Total / Overall** | **9** | **55** | **72** | **76.4%** | **9 / 9 (100% LLM)** |
 
-### Multi-LLM Router (`resolveTaskLLM`)
-The server supports per-task model overrides via environment variables:
-- `ASSESSMENT_MODEL` — model for financial analysis
-- `RAG_MODEL` — model for RAG Q&A
-- `STRATEGY_MODEL` — model for strategy recommendations
+*Notable finding:* In Scenario C, the LLM successfully extracted quantitative evidence from corrupted text (e.g., extracting `9.1% YoY inflation` from `+9.l%` and `68% customer concentration`).
 
-All default to `OLLAMA_MODEL` (which defaults to `qwen2.5:7b`). The router also adjusts the Ollama URL for Docker networking (replacing `localhost` with `host.docker.internal` when running inside a container).
+### Layer 4: System Latency Profile
 
-### RAG Proxy Endpoints
-The Express server proxies all RAG calls (`/api/rag/*`) to the Python service at `http://127.0.0.1:8000`. Before forwarding, it:
-1. Validates the request parameters
-2. Verifies document ownership (checks if the user owns the document in PostgreSQL)
-3. Sanitises inputs (question capped at 500 chars, `top_k` capped at 10)
-4. Forwards to the Python service with a 60-second timeout
-
-### Document Ownership Security
-The `verifyDocumentOwnership()` function implements a two-tier check:
-- **Authenticated users**: Looks up the document in PostgreSQL and verifies `userUid` matches
-- **Guest users**: Checks the in-memory `guestDocumentIds` Set
-- **Cross-access prevention**: Authenticated documents cannot be accessed by guests, and vice versa
+Measured across 20 scripted queries on consumer Apple Silicon hardware:
+- **Median Latency (p50):** `7.14 seconds`
+- **95th Percentile (p95):** `8.85 seconds` (Min: 5.89s, Max: 9.35s, Mean: 7.24s)
+- *Conclusion:* Exceeded the original cloud-based proposal target ($<8.0\text{s}$), reflecting the privacy and quota-immunity trade-off of local CPU/unified-memory inference.
 
 ---
 
-## Scoring Engine — How Scores Are Calculated
+## Quick Start Guide
 
-The scoring logic is in `calculateScores()` in `server.ts`.
-
-### Sector Benchmarks
-Four sectors are defined, each with P25/P50/P75 percentile values:
-
-| Metric | Manufacturing | Services | Retail | Other |
-|---|---|---|---|---|
-| Revenue per Employee (P50) | £175,000 | £145,000 | £190,000 | £160,000 |
-| Output per Payroll (P50) | 4.2x | 3.8x | 5.3x | 4.0x |
-| Gross Margin (P50) | 35% | 55% | 28% | 38% |
-| Operating Margin (P50) | 12% | 18% | 6% | 10% |
-
-### Productivity Index (0–100) = Labour Efficiency (0–50) + Financial Health (0–50)
-
-#### Labour Efficiency (0–50 points)
-Two sub-metrics, each worth 25 points max:
-
-1. **Revenue per Employee** = `revenue / headcount`
-   - Score = `(actual / benchmark_P50) × 12.5`, clamped between 3 and 25
-   
-2. **Output per Payroll** = `revenue / payroll`
-   - Score = `(actual / benchmark_P50) × 12.5`, clamped between 3 and 25
-
-If only one sub-metric is available, it is doubled to fill the full 50-point range. If neither is available (common in UK micro-entity accounts), a baseline score of 25 is assigned.
-
-#### Financial Health (0–50 points)
-Two components:
-
-1. **Margin Score (0–25 points)**: Average of gross margin score and operating margin score, each scored as `(actual / benchmark_P50) × 6.25`, clamped between 1.5 and 12.5
-
-2. **Liquidity Score (0–25 points)**: Based on current ratio (`current assets / current liabilities`):
-   - ≥ 1.5 → 25 points (full marks)
-   - 1.0–1.5 → scaled between 15–25
-   - < 1.0 → `max(3, ratio × 15)` (penalised)
-
-#### Digital Maturity Score (0–100, separate)
-Not part of the Productivity Index — reported separately:
-- Base score: 30
-- +12 per digital tool detected
-- +25 for "High" maturity level, +10 for "Medium"
-- Clamped between 10 and 100
-
-### Handling Missing Data
-The system is designed for UK micro-entity accounts that often omit data. Missing metrics default to **baseline scores** (midpoint), not zero. This prevents unfairly penalising companies that simply don't disclose certain figures.
+### Prerequisites
+1. Install [Docker](https://docs.docker.com/get-docker/) & Docker Compose.
+2. Install and launch [Ollama](https://ollama.ai/):
+   ```bash
+   ollama pull qwen2.5:7b
+   ```
 
 ---
 
-## RAG Microservice (Python FastAPI)
-
-Located in `rag_service/`, this is a separate Python application that handles document indexing and Q&A.
-
-### How It Works
-
-#### Text Extraction (`extract_text`)
-- PDFs: Uses `pypdf.PdfReader` to extract text page-by-page
-- CSVs: Decoded as UTF-8 directly
-- Returns a list of `{page, text}` objects
-
-#### Section-Aware Chunking (`create_chunks`)
-The chunker is smarter than a simple sliding window:
-1. **Detects section boundaries** using:
-   - Separator bars (`====` or `----`, 10+ chars)
-   - ALL-CAPS header lines (≥4 alpha chars, ≥60% uppercase)
-   - Checks for adjacent separator bars to confirm real headers
-2. **Keeps sections intact** if they're under 1500 characters (preserves complete financial tables)
-3. **Falls back to sliding window** for oversized sections: 400-character chunks with 150-character overlap
-4. **Merges tiny fragments** (< 30 chars) into the previous section
-
-#### Embedding Generation (`_get_embedding`)
-- Primary: Calls Ollama's `/api/embeddings` endpoint to generate a dense vector
-- The vector is L2-normalised for cosine similarity
-- Fallback: If Ollama is unavailable, generates a 128-dimensional hash-based vector (deterministic, based on word hashing)
-
-#### Vector Search (`search_similar_chunks`)
-- Computes cosine similarity (dot product of normalised vectors) between the query embedding and all chunk embeddings for a given document
-- Returns top-K results sorted by similarity score
-
-#### Query Answering (`query`)
-1. Retrieves top-K similar chunks
-2. Constructs a prompt with the chunks as context
-3. Sends to Ollama with a system prompt that enforces: "Base your answer strictly on the provided context snippets"
-4. Returns the answer with source citations (page numbers and similarity scores)
-
-### API Endpoints
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/health` | GET | Service health + document count |
-| `/index` | POST | Index a document (multipart: doc_id + file) |
-| `/extract` | POST | Extract text from a file (multipart: file) |
-| `/query` | POST | Query indexed document (JSON: doc_id, question, top_k) |
-
-### Vector Store Persistence & Semantic Fallbacks
-- **Disk Persistence:** Embeddings and chunk metadata are persisted to disk (`vector_store.json`), ensuring indexed documents survive service and container restarts.
-- **Semantic Fallback:** Uses Ollama embeddings by default, with automatic fallback to FastEmbed (`BAAI/bge-small-en-v1.5`) when Ollama is unavailable.
-- **Qwen 2.5 Model Enforcement:** All chat reasoning and document Q&A use Qwen 2.5 (`qwen2.5:7b`).
-- **Environment Configurable:** Node proxy connects to Python RAG service via `RAG_SERVICE_URL` (default `http://127.0.0.1:8000`).
-
----
-
-## Database Layer (PostgreSQL + Drizzle ORM)
-
-### Schema (`src/db/schema.ts`)
-
-Two tables:
-
-```
-users
-├── id          (serial, primary key)
-├── uid         (text, unique — Firebase Auth UID)
-├── email       (text)
-└── created_at  (timestamp, default now)
-
-assessments
-├── id          (text, primary key — crypto.randomUUID())
-├── user_uid    (text, foreign key → users.uid)
-├── date        (text — ISO string)
-├── company_name (text)
-├── sector      (text)
-├── file_name   (text)
-├── file_type   (text — "PDF" or "CSV")
-├── metrics     (jsonb — full FinancialMetrics object)
-├── scores      (jsonb — full AssessmentScores object)
-├── benchmarks  (jsonb — full SectorBenchmarks object)
-└── created_at  (timestamp, default now)
-```
-
-### User Sync (`src/db/users.ts`)
-The `getOrCreateUser()` function uses an **upsert** (`INSERT ... ON CONFLICT DO UPDATE`) to synchronise Firebase Auth users into PostgreSQL. This runs automatically on every authenticated request through the auth middleware.
-
-### Connection (`src/db/index.ts`)
-Creates a `pg.Pool` connection pool with a 15-second connection timeout. The pool handles connection reuse and error recovery automatically.
-
-### Migrations
-Drizzle Kit's `push` command is used (not SQL migration files). It reads the TypeScript schema and applies changes directly to the database. This runs automatically at container startup via `entrypoint.sh`.
-
----
-
-## Authentication & Security
-
-### Two Auth Modes
-
-1. **Google Sign-In** (Firebase Authentication)
-   - User clicks "Sign in with Google" → Firebase popup → Google OAuth consent
-   - Frontend receives a Firebase ID token + Google access token
-   - ID token is sent as `Authorization: Bearer <token>` on every API call
-   - Server verifies the token using Firebase Admin SDK (`adminAuth.verifyIdToken`)
-
-2. **Guest Mode**
-   - User clicks "Direct Access (Guest Mode)"
-   - No token is sent — server applies rate limiting instead
-   - Assessment history stored in browser `localStorage`
-   - Rate limit: 10 requests per 15 minutes per IP address
-
-### Auth Middleware (`src/middleware/auth.ts`)
-
-Two middleware functions:
-- **`requireAuth`**: Returns 401 if no valid token. Used for `/api/history` CRUD operations.
-- **`optionalAuth`**: Tries to verify token but proceeds as guest if missing. Used for `/api/assess` and `/api/rag/*`.
-
-Both middleware functions automatically call `getOrCreateUser()` to sync the Firebase user into PostgreSQL.
-
-### Firestore Security Rules (`firestore.rules`)
-Defence-in-depth rules for the Firestore database (used alongside PostgreSQL):
-- Global deny-all default (`allow read, write: if false`)
-- Users can only read/write their own profile (`request.auth.uid == userId`)
-- Assessments are **immutable** — updates are blocked (`allow update: if false`)
-- Document IDs are validated against a regex pattern
-- Field-level validation on creates (required fields, string length limits)
-
-### Server-Side Security
-- **File signature validation**: Magic byte checking prevents uploading executables disguised as PDFs
-- **Input sanitisation**: Question length capped at 500 chars, top_k capped at 10
-- **Document ownership**: Every RAG query verifies the requesting user owns the document
-- **No disk writes**: Files are processed entirely in memory via multer
-- **Timeout protection**: All external calls use `AbortController` with configurable timeouts (default 120s for LLM, 60s for RAG)
-
----
-
-## Report Export (PDF & Google Docs)
-
-### PDF Export (Client-Side)
-`src/utils/pdfGenerator.ts` uses **jsPDF** to generate a multi-page A4 report entirely in the browser:
-- Indigo-branded header with company name and assessment ID
-- Executive summary with all scores
-- Labour efficiency metrics with benchmarks
-- Financial health metrics with benchmarks
-- Digital maturity section with detected tools
-- Numbered recommendations list
-- Professional footer with page numbers
-
-### Google Docs Export (Server-Side)
-The `/api/export-docs` endpoint:
-1. Verifies the user owns the assessment
-2. Uses the Google OAuth access token (obtained during sign-in) to create a new Google Doc via the Google Docs API
-3. Populates the document with a formatted text report
-4. Returns the Google Docs URL to the frontend
-
-This requires the Google Docs and Drive scopes, which are requested during sign-in:
-- `https://www.googleapis.com/auth/documents`
-- `https://www.googleapis.com/auth/drive.file`
-
----
-
-## Docker & Deployment
-
-### Dockerfile
-Single-stage build based on `node:20-bookworm-slim`:
-1. Installs system dependencies (Python 3, pip, venv, netcat)
-2. Copies and installs Node dependencies (`npm install`)
-3. Creates Python virtualenv and installs RAG dependencies
-4. Copies application code
-5. Builds frontend (Vite) and compiles server (esbuild)
-6. Entrypoint: `entrypoint.sh`
-
-### Docker Compose (`docker-compose.yml`)
-Two services:
-- **db**: PostgreSQL 15 Alpine with health check (`pg_isready`)
-- **app**: The Vantly application, depends on `db` being healthy
-
-The app service passes through LLM configuration from the host `.env` file and maps `host.docker.internal` to allow the container to reach Ollama running on the host machine.
-
-### Entrypoint Script (`entrypoint.sh`)
-1. Waits for PostgreSQL to accept connections (polls with `netcat`)
-2. Runs Drizzle Kit migrations (`npx drizzle-kit push`)
-3. Starts the production server (`npm start`)
-
----
-
-## CI/CD Pipeline
-
-The GitHub Actions workflow (`.github/workflows/ci-cd.yml`) runs on every push/PR to `main`:
-
-| Job | What It Does |
-|---|---|
-| **node-check** | Installs Node 20, runs TypeScript typecheck (`tsc --noEmit`), builds production bundle |
-| **python-check** | Installs Python 3.11, installs RAG dependencies, verifies syntax compilation of both `.py` files |
-| **docker-build** | Builds the full Docker image (depends on both checks passing), uses GitHub Actions cache |
-| **deploy** | Triggers a Render deploy hook (only on push to `main`, only if the secret is configured) |
-
----
-
-## Evaluation Harness (RAGAS)
-
-The `eval/` directory contains a comprehensive evaluation framework:
-
-### Files
-| File | Purpose |
-|---|---|
-| `evaluate.py` | Main RAGAS harness — indexes fixture document, runs N query passes, scores with RAGAS metrics |
-| `score_only.py` | Lightweight scorer — runs queries and computes heuristic scores without RAGAS dependencies |
-| `assess_e2e.py` | End-to-end assessment test — uploads a fixture file via the full `/api/assess` endpoint |
-| `test_security_and_correctness.py` | Security tests — validates file rejection, rate limiting, ownership checks |
-| `ground_truth.yaml` | 10 hand-written QA pairs against the fixture document |
-| `fixtures/meridian_financials.txt` | Synthetic financial document (the test corpus) |
-| `fixtures/meridian_scenario_c_degraded.txt` | Degraded version for testing robustness |
-
-### RAGAS Metrics
-| Metric | What It Measures |
-|---|---|
-| **Faithfulness** | Is every claim in the answer supported by retrieved chunks? |
-| **Context Precision** | Are the most relevant chunks ranked highest? |
-| **Context Recall** | Did retrieval surface all needed chunks? |
-| **Answer Relevancy** | Does the answer actually address the question? |
-
-See [eval/README.md](eval/README.md) for full setup and usage instructions.
-
----
-
-## Project Structure
-
-```
-vantly/
-├── src/
-│   ├── App.tsx                     # Root component (auth, routing, state)
-│   ├── main.tsx                    # React DOM entry point
-│   ├── types.ts                    # TypeScript interfaces (FinancialMetrics, AssessmentScores, etc.)
-│   ├── index.css                   # Global Tailwind CSS styles
-│   ├── components/
-│   │   ├── UploadForm.tsx          # File upload form with sector selector
-│   │   ├── ResultsDashboard.tsx    # Score dashboard with charts (734 lines)
-│   │   ├── RAGChat.tsx             # Document Q&A chat interface
-│   │   ├── HistoryList.tsx         # Past assessment sidebar
-│   │   └── VantlyLogo.tsx          # SVG logo component
-│   ├── context/
-│   │   └── AuthContext.tsx         # Firebase Auth React context provider
-│   ├── db/
-│   │   ├── schema.ts              # Drizzle ORM schema (users + assessments tables)
-│   │   ├── drizzle.config.ts      # Drizzle Kit migration config
-│   │   ├── index.ts               # PostgreSQL connection pool
-│   │   └── users.ts               # User upsert helper (getOrCreateUser)
-│   ├── lib/
-│   │   ├── firebase.ts            # Firebase client SDK init (auth, firestore, Google provider)
-│   │   ├── firebase-admin.ts      # Firebase Admin SDK init (server-side token verification)
-│   │   └── firebaseConfig.json    # Firebase project configuration
-│   ├── middleware/
-│   │   └── auth.ts                # Express middleware (requireAuth, optionalAuth)
-│   └── utils/
-│       └── pdfGenerator.ts        # Client-side PDF report generation (jsPDF, 473 lines)
-├── server.ts                       # Express API server — assessment engine, scoring, RAG proxy (1092 lines)
-├── rag_service/
-│   ├── main.py                    # FastAPI app with /health, /index, /extract, /query endpoints
-│   ├── rag_engine.py              # RAGEngine class: text extraction, chunking, embedding, vector search
-│   └── requirements.txt           # Python dependencies (fastapi, uvicorn, pypdf, numpy, requests)
-├── eval/                           # RAGAS evaluation harness (see eval/README.md)
-│   ├── evaluate.py                # Full RAGAS evaluation runner
-│   ├── score_only.py              # Heuristic scoring without RAGAS
-│   ├── assess_e2e.py              # End-to-end assessment tests
-│   ├── test_security_and_correctness.py  # Security and validation tests
-│   ├── ground_truth.yaml          # 10 QA pairs for evaluation
-│   ├── fixtures/                  # Synthetic financial documents
-│   └── requirements.txt           # Eval-specific Python dependencies
-├── Dockerfile                      # Production image (Node 20 + Python 3)
-├── docker-compose.yml              # PostgreSQL + app orchestration
-├── entrypoint.sh                   # Container startup (wait for DB → migrate → serve)
-├── firestore.rules                 # Firestore security rules
-├── .github/workflows/ci-cd.yml    # CI/CD pipeline (4 jobs)
-├── index.html                      # Vite HTML entry point
-├── vite.config.ts                  # Vite + React + Tailwind plugin config
-├── tsconfig.json                   # TypeScript compiler config
-└── package.json                    # Node dependencies and npm scripts
-```
-
----
-
-## API Reference
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/api/health` | None | Server health check (`{"status":"ok"}`) |
-| `GET` | `/api/benchmarks` | None | Returns all sector benchmark data |
-| `POST` | `/api/assess` | Optional | Upload document for assessment (multipart: file, sector, companyName) |
-| `GET` | `/api/history` | Required | List user's assessment history (newest first) |
-| `GET` | `/api/history/:id` | Required | Get a specific assessment by ID |
-| `DELETE` | `/api/history/:id` | Required | Delete an assessment (ownership verified) |
-| `POST` | `/api/export-docs` | Required | Export assessment to Google Docs (body: assessmentId, googleAccessToken) |
-| `GET` | `/api/rag/health` | Optional | Python RAG microservice health check |
-| `POST` | `/api/rag/index` | Optional | Index a document into the vector store (multipart: doc_id, file) |
-| `POST` | `/api/rag/query` | Optional | Query an indexed document (body: doc_id, question, top_k) |
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `LLM_PROVIDER` | `ollama` | LLM provider (only `ollama` is supported) |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` (Docker: `http://host.docker.internal:11434`) | Ollama API endpoint |
-| `OLLAMA_MODEL` | `qwen2.5:7b` | Default model for all tasks |
-| `ASSESSMENT_MODEL` | (inherits `OLLAMA_MODEL`) | Override model for financial assessment |
-| `RAG_MODEL` | (inherits `OLLAMA_MODEL`) | Override model for RAG queries |
-| `STRATEGY_MODEL` | (inherits `OLLAMA_MODEL`) | Override model for strategy tasks |
-| `SQL_HOST` | `db` (Docker) / `localhost` | PostgreSQL host |
-| `SQL_PORT` | `5432` | PostgreSQL port |
-| `SQL_USER` | `postgres` | PostgreSQL username |
-| `SQL_PASSWORD` | `postgres` | PostgreSQL password |
-| `SQL_DB_NAME` | `vantly` | PostgreSQL database name |
-| `RAG_SERVICE_URL` | `http://127.0.0.1:8000` | Python FastAPI RAG microservice URL |
-| `VECTOR_STORE_FILE` | `/app/rag_service/data/vector_store.json` | Path to persisted JSON vector store |
-| `RAG_MIN_SIMILARITY`| `0.25` | Minimum cosine similarity threshold for retrieval |
-| `OPENAI_API_KEY` | — | Optional, only needed for RAGAS evaluation |
-
----
-
-## Quick Start
-
-### With Docker (Recommended)
+### Option A: Docker Compose (Recommended)
 
 ```bash
-# 1. Clone
-git clone https://github.com/jagtappranit30/vantly.git
-cd vantly
+# 1. Clone repository
+git clone https://github.com/jagtappranit30/productive-point.git
+cd productive-point
 
-# 2. Make sure Ollama is running on host with Qwen 2.5
-ollama pull qwen2.5:7b
-
-# 3. Configure environment
+# 2. Configure environment file
 cp .env.example .env
 
-# 4. Start everything (PostgreSQL + Express + Python RAG)
+# 3. Launch database, backend gateway, and Python RAG service
 docker compose up --build -d
 
-# 5. Check logs & verify
+# 4. Follow application startup logs
 docker compose logs -f app
 
-# 6. Open http://localhost:3000
+# 5. Access web application in browser
+open http://localhost:3000
 ```
 
-### Local Development
+---
+
+### Option B: Bare-Metal Local Development
 
 ```bash
-# Start PostgreSQL (via Docker or locally)
-docker run -d --name vantly-db -e POSTGRES_DB=vantly -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:15-alpine
+# 1. Start PostgreSQL instance
+docker run -d --name productive-point-db \
+  -e POSTGRES_DB=productive_point \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 postgres:15-alpine
 
-# Install Node dependencies
+# 2. Install Node.js dependencies
 npm install
 
-# Setup Python virtualenv for RAG service
+# 3. Setup Python RAG virtual environment
 cd rag_service
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cd ..
 
-# Set SQL_HOST=localhost in .env
+# 4. Setup environment variables
 cp .env.example .env
-# Edit .env: SQL_HOST="localhost"
+# Ensure SQL_HOST="localhost" in .env for non-docker execution
 
-# Run database migrations
+# 5. Apply PostgreSQL schemas via Drizzle Kit
 npx drizzle-kit push --config=src/db/drizzle.config.ts
 
-# Start dev server (Express + Vite HMR + Python RAG microservice)
+# 6. Start full-stack development environment (Vite HMR + Express Gateway + RAG Service)
 npm run dev
 
-# Open http://localhost:3000
+# 7. Access in browser
+open http://localhost:3000
 ```
+
+---
+
+## Evaluation Reproduction
+
+To independently reproduce the evaluation results reported in Chapter 5:
+
+```bash
+# Activate Python evaluation environment
+cd eval
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 1. Run the Multi-Scenario 90-Query Benchmark Harness
+python evaluate.py --rag-url http://127.0.0.1:8000 --runs 3 --top-k 5
+
+# 2. Run Deterministic Scoring Verification (Offline arithmetic checks)
+python evaluate_scoring.py
+
+# 3. Run End-to-End Live API Assessment Verification
+python assess_e2e.py
+
+# 4. Run Post-Fix Recommendation Quality Test
+python test_recommendation_quality_post_fix.py
+```
+
+---
+
+## API Reference
+
+### Core Endpoints
+
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :---: | :--- |
+| `GET` | `/api/health` | None | API Gateway heartbeat verification. |
+| `GET` | `/api/benchmarks` | None | Returns configured sector percentile distributions. |
+| `POST` | `/api/assess` | Optional | Ingests document (multipart), extracts metrics, computes scores. |
+| `GET` | `/api/history` | Required | Retrieves authenticated user's historic assessments. |
+| `GET` | `/api/history/:id` | Required | Fetches detailed assessment run by UUID. |
+| `DELETE`| `/api/history/:id`| Required | Removes assessment record (ownership validated). |
+| `POST` | `/api/export-docs` | Required | Synchronises assessment into formatted Google Doc. |
+
+### RAG Microservice Endpoints (Proxied via Express)
+
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :---: | :--- |
+| `GET` | `/api/rag/health` | Optional | Microservice health check & vector store document count. |
+| `POST` | `/api/rag/index` | Optional | Chunks, embeds, and indexes document into vector store. |
+| `POST` | `/api/rag/query` | Optional | Vector similarity search and grounded natural-language QA. |
+
+---
+
+## Environment Configuration
+
+Key configuration parameters defined in `.env.example`:
+
+```bash
+# ── LLM Runtime (Ollama Local) ───────────────────────────
+LLM_PROVIDER="ollama"
+OLLAMA_BASE_URL="http://localhost:11434" # Docker: http://host.docker.internal:11434
+OLLAMA_MODEL="qwen2.5:7b"
+
+# ── Task Routing Overrides (Optional) ────────────────────
+ASSESSMENT_MODEL="qwen2.5:7b"
+RAG_MODEL="qwen2.5:7b"
+STRATEGY_MODEL="qwen2.5:7b"
+
+# ── PostgreSQL Persistence ───────────────────────────────
+SQL_HOST="db"                            # Local: "localhost"
+SQL_PORT=5432
+SQL_USER="postgres"
+SQL_PASSWORD="your_password_here"
+SQL_DB_NAME="productive_point"
+
+# ── RAG Microservice Configuration ───────────────────────
+RAG_SERVICE_URL="http://127.0.0.1:8000"
+VECTOR_STORE_FILE="/app/rag_service/data/vector_store.json"
+RAG_MIN_SIMILARITY=0.25
+```
+
+---
+
+## Repository Structure
+
+```
+productive-point/
+├── .github/workflows/ci-cd.yml    # GitHub Actions CI workflow (typecheck, lint, build)
+├── config/
+│   └── sector_benchmarks.json     # Hardcoded sector percentile tables
+├── eval/                          # Research evaluation framework
+│   ├── fixtures/                  # Controlled test documents (A: Clean, B: Tabular, C: OCR-noise)
+│   ├── results/                   # Raw CSV/JSON evaluation runs and summary reports
+│   ├── assess_e2e.py              # End-to-end API pipeline validation
+│   ├── evaluate.py                # Multi-scenario 90-query benchmark suite
+│   ├── evaluate_scoring.py        # Isolated scoring arithmetic test harness
+│   ├── evaluation_config.json     # Formal evaluation configuration snapshot
+│   ├── ground_truth.yaml          # Ground-truth QA pairs and expected metrics
+│   └── latency_log.txt            # Raw latency telemetry log
+├── rag_service/                   # Python FastAPI RAG microservice
+│   ├── main.py                    # REST endpoints (/extract, /index, /query, /health)
+│   ├── rag_engine.py              # Section-aware chunker, vector store & retrieval engine
+│   └── requirements.txt           # Python dependencies
+├── src/                           # React frontend & shared helpers
+│   ├── components/                # UI components (UploadForm, ResultsDashboard, RAGChat)
+│   ├── context/AuthContext.tsx    # Firebase authentication context
+│   ├── db/                        # Drizzle ORM schema and PostgreSQL connection pool
+│   ├── lib/                       # Firebase client and Admin SDK initialization
+│   ├── middleware/auth.ts         # Dual-mode authorization guards
+│   ├── utils/pdfGenerator.ts      # Client-side PDF export generator
+│   ├── App.tsx                    # Root UI router and state orchestrator
+│   └── types.ts                   # TypeScript domain interfaces
+├── Dockerfile                     # Multi-stage production container manifest
+├── docker-compose.yml             # Service orchestration (PostgreSQL + App)
+├── entrypoint.sh                  # Database migration & service bootstrapper
+├── package.json                   # Node.js dependencies and lifecycle scripts
+├── server.ts                      # Express API gateway, deterministic parser & scoring engine
+└── vite.config.ts                 # Vite bundle configuration
+```
+
+---
+
+## Academic Provenance & Research Disclaimers
+
+1. **Design Science Research (DSR):** This software is a research prototype developed to evaluate the technical feasibility and boundaries of offline RAG and deterministic scoring under commodity resource constraints.
+2. **Benchmark Validity:** Configured benchmark values are illustrative prototype percentiles; they do not represent validated national statistical distributions (such as official ONS or OECD micro-datasets). Sourcing validated percentile distributions remains future work.
+3. **OCR Terminology Clarification:** The ingestion pipeline performs native stream parsing via `pypdf`. The application does not contain an Optical Character Recognition (OCR) vision engine. Scenario C tests downstream LLM resilience against *simulated OCR-style character corruption* (`l↔1`, `O↔0`, `f↔£`).
+4. **Evaluation Versioning:** The principal 90-query evaluation in Chapter 5 was conducted on the evaluated baseline configuration. Post-evaluation codebase enhancements (disk persistence, FastEmbed fallback, similarity filtering, recommendation wiring) are documented as supporting engineering hardening.
 
 ---
 
 ## License
 
-This project is proprietary. All rights reserved.
+This project is submitted as an academic dissertation artefact. All rights reserved.

@@ -6,12 +6,12 @@ import { useAuth } from "./context/AuthContext.tsx";
 import UploadForm from "./components/UploadForm";
 import ResultsDashboard from "./components/ResultsDashboard";
 import HistoryList from "./components/HistoryList";
-import { VantlyLogo } from "./components/VantlyLogo";
+import { ProductivePointLogo } from "./components/ProductivePointLogo";
 
 export default function App() {
   const { user, idToken, loading, signInWithGoogle, signOut } = useAuth();
   const [isGuestMode, setIsGuestMode] = useState<boolean>(() => {
-    return localStorage.getItem("vantly_guest_mode") === "true";
+    return localStorage.getItem("productive_point_guest_mode") === "true";
   });
   const [history, setHistory] = useState<AssessmentRun[]>([]);
   const [selectedAssessment, setSelectedAssessment] = useState<AssessmentRun | null>(null);
@@ -44,12 +44,12 @@ export default function App() {
   };
 
   const handleEnterAsGuest = () => {
-    localStorage.setItem("vantly_guest_mode", "true");
+    localStorage.setItem("productive_point_guest_mode", "true");
     setIsGuestMode(true);
   };
 
   const handleExitGuestMode = () => {
-    localStorage.removeItem("vantly_guest_mode");
+    localStorage.removeItem("productive_point_guest_mode");
     setIsGuestMode(false);
     setHistory([]);
     setSelectedAssessment(null);
@@ -57,7 +57,7 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
-      localStorage.removeItem("vantly_guest_mode");
+      localStorage.removeItem("productive_point_guest_mode");
       setIsGuestMode(false);
     }
   }, [user]);
@@ -93,7 +93,7 @@ export default function App() {
     } else if (isGuestMode) {
       // Load from localStorage for guests
       try {
-        const localDataStr = localStorage.getItem("vantly_guest_history");
+        const localDataStr = localStorage.getItem("productive_point_guest_history");
         if (localDataStr) {
           const data = JSON.parse(localDataStr) as AssessmentRun[];
           setHistory(data);
@@ -117,7 +117,7 @@ export default function App() {
   // Sync guest history with localStorage
   useEffect(() => {
     if (isGuestMode && !idToken) {
-      localStorage.setItem("vantly_guest_history", JSON.stringify(history));
+      localStorage.setItem("productive_point_guest_history", JSON.stringify(history));
     }
   }, [history, isGuestMode, idToken]);
 
@@ -222,10 +222,10 @@ export default function App() {
         <header className="w-full bg-white border-b border-zinc-200 px-6 py-4.5 transition-colors duration-300">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <VantlyLogo className="w-10 h-10" />
+              <ProductivePointLogo className="w-10 h-10" />
               <div>
                 <span className="block font-display font-black text-base tracking-tight text-zinc-950 ">
-                  Vantly
+                  Productive Point
                 </span>
                 <span className="block text-[9px] font-extrabold text-indigo-600 uppercase tracking-widest leading-none mt-1">
                   See your business clearly
@@ -407,7 +407,7 @@ export default function App() {
         </main>
 
         <footer className="w-full bg-white border-t border-zinc-200 py-6 px-6 mt-auto text-center text-[9px] font-bold uppercase tracking-widest text-zinc-400 transition-colors duration-300">
-          Vantly • See your business clearly
+          Productive Point • See your business clearly
         </footer>
       </div>
     );
@@ -420,10 +420,10 @@ export default function App() {
       <header className="sticky top-0 z-20 w-full bg-white border-b border-zinc-200 shadow-[0_8px_30px_rgb(0,0,0,0.02)] px-6 py-4 transition-colors duration-300">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <VantlyLogo className="w-10 h-10" />
+            <ProductivePointLogo className="w-10 h-10" />
             <div>
               <span className="block font-display font-black text-base tracking-tight text-zinc-950 ">
-                Vantly
+                Productive Point
               </span>
               <span className="block text-4xs font-bold text-indigo-600 uppercase tracking-widest leading-none mt-1">
                 See your business clearly
@@ -551,7 +551,7 @@ export default function App() {
 
       {/* Footer credits */}
       <footer className="w-full bg-white border-t border-zinc-200 py-6 px-6 mt-auto text-center text-4xs text-zinc-400 font-bold uppercase tracking-widest transition-colors duration-300">
-        Vantly • See your business clearly • Secure Business Intelligence
+        Productive Point • See your business clearly • Secure Business Intelligence
       </footer>
 
       {/* Academic Framework Specs Modal */}

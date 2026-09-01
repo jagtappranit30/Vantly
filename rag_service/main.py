@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from rag_engine import rag_engine
 
-app = FastAPI(title="Vantly AI - Python RAG Microservice", version="1.0.0")
+app = FastAPI(title="Productive Point AI - Python RAG Microservice", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,7 +25,7 @@ class QueryRequest(BaseModel):
 def health_check():
     return {
         "status": "healthy",
-        "service": "Vantly AI Python RAG Engine",
+        "service": "Productive Point AI Python RAG Engine",
         "llm_provider": "ollama",
         "ollama_model": rag_engine.ollama_model,
         "indexed_documents_count": len(rag_engine.vector_store)

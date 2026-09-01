@@ -31,7 +31,7 @@ export const RAGChat: React.FC<RAGChatProps> = ({ docId, companyName, fileName }
     {
       id: "welcome",
       sender: "assistant",
-      text: `Hello! I am Vantly's Document Assistant. Ask me any granular question about **${fileName}** for ${companyName}, and I will retrieve exact page citations and relevant context snippets.`,
+      text: `Hello! I am Productive Point's Document Assistant. Ask me any granular question about **${fileName}** for ${companyName}, and I will retrieve exact page citations and relevant context snippets.`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);

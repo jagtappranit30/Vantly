@@ -456,7 +456,7 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
   doc.text("Trace Logging Source:", marginX + 100, y + 6);
   doc.setFont("Helvetica", "normal");
   doc.setTextColor(51, 65, 85); // slate-700
-  doc.text("Vantly Analysis Core", marginX + 134, y + 6);
+  doc.text("Productive Point Analysis Core", marginX + 134, y + 6);
 
   y += 15;
 
@@ -482,5 +482,5 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
 
   // Save the PDF
   const safeCompanyName = companyName.toLowerCase().replace(/[^a-z0-9]/g, "_") || "sme_assessment";
-  doc.save(`Vantly_Productivity_Report_${safeCompanyName}.pdf`);
+  doc.save(`Productive_Point_Productivity_Report_${safeCompanyName}.pdf`);
 }

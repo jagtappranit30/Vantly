@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Vantly Scoring Engine Evaluation Suite
-=======================================
+Productive Point Scoring Engine Evaluation Suite
+================================================
 Evaluates the core financial calculation engine, sector benchmark comparison,
 and Productivity Index scoring logic against deterministic financial inputs.
 

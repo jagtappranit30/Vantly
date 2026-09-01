@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Vantly — Recommendation Wiring Unit Tests
- * ==========================================
+ * Productive Point — Recommendation Wiring Unit Tests
+ * ===================================================
  * Tests the validateLLMRecommendations logic in isolation.
  * Uses Node's built-in test runner (node:test), available in Node 18+.
  *

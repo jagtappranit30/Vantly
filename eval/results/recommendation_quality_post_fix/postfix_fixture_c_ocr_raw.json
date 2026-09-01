@@ -1,0 +1,78 @@
+{
+  "id": "b481ae71-d71e-43a1-800a-2ecce349ce69",
+  "date": "2026-08-29T19:22:45.405Z",
+  "companyName": "MERJDIAN MANUFACTURlNG LTD",
+  "sector": "Manufacturing",
+  "fileName": "meridian_scenario_c_degraded.txt",
+  "fileType": "CSV",
+  "metrics": {
+    "companyName": "MERJDIAN MANUFACTURlNG LTD",
+    "revenue": 42,
+    "headcount": 42,
+    "cogs": 252,
+    "payroll": 5,
+    "grossMargin": 4,
+    "operatingMargin": 0,
+    "currentAssets": 890000,
+    "currentLiabilities": 445000,
+    "digitalTools": [
+      "SAP S/4HANA",
+      "Salesforce CRM",
+      "Microsoft 365",
+      "Keyence Vision inspection systems",
+      "SYSPRO MES"
+    ],
+    "confidence": 100,
+    "extractedJustifications": "Revenue: Page 2, Income Statement Summary, 'Total Revenue (Turnover): £4,200,000'\nHeadcount: Page 1, Company Overview, 'Total headcount of 42 full-time equivalent staff'\nCOGS: Page 2, Income Statement Summary, 'Cost of Goods Sold (COGS): £2,520,000'\nPayroll: Page 2, Income Statement Summary, 'Staff Payroll & Employer NI: £1,050,000'\nGross Margin: Page 2, Income Statement Summary, 'Gross Margin (%): 40.0%'\nOperating Margin: Page 2, Income Statement Summary, 'Operating Margin (%): 0.0%'\nCurrent Assets: Page 3, Balance Sheet Summary, 'Total Current Assets: £890,000'\nCurrent Liabilities: Page 3, Balance Sheet Summary, 'Total Current Liabilities: £445,000'"
+  },
+  "scores": {
+    "labourEfficiencyScore": 28,
+    "labourDetails": {
+      "revenuePerEmployee": 1,
+      "outputPerPayroll": 8.4,
+      "revenuePerEmployeeBenchmark": 98000,
+      "outputPerPayrollBenchmark": 3.7
+    },
+    "financialHealthScore": 28,
+    "financialDetails": {
+      "grossMargin": 4,
+      "operatingMargin": 0,
+      "currentRatio": 2,
+      "grossMarginBenchmark": 35,
+      "operatingMarginBenchmark": 12
+    },
+    "productivityIndex": 56,
+    "digitalMaturityScore": 100,
+    "digitalMaturityLevel": "Medium",
+    "qualitativeAnalysis": "Assessment completed successfully based on provided financials.",
+    "recommendations": [
+      "Implement a more granular cost management system to better track and control raw material costs, which have increased by 9.1% year-on-year.",
+      "Develop a pricing strategy to mitigate the impact of raw material cost inflation, ensuring that pricing adjustments are timely and effective.",
+      "Enhance customer diversification efforts to reduce revenue concentration risk, particularly with the top three customers generating 68% of the revenue."
+    ],
+    "recommendationSource": "llm"
+  },
+  "benchmarks": {
+    "sector": "Manufacturing",
+    "revenue_per_employee": {
+      "p25": 72000,
+      "p50": 98000,
+      "p75": 130000
+    },
+    "output_per_payroll": {
+      "p25": 2.8,
+      "p50": 3.7,
+      "p75": 5.2
+    },
+    "gross_margin": {
+      "p25": 25,
+      "p50": 35,
+      "p75": 45
+    },
+    "operating_margin": {
+      "p25": 5,
+      "p50": 12,
+      "p75": 20
+    }
+  }
+}

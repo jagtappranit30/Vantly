@@ -379,7 +379,7 @@ class RAGEngine:
         ])
 
         system_prompt = (
-            "You are Vantly's Financial Document Assistant powered by Qwen 2.5. Your job is to answer user questions about "
+            "You are Productive Point's Financial Document Assistant powered by Qwen 2.5. Your job is to answer user questions about "
             "financial statements using ONLY the provided document context snippets.\n"
             "STRICT RULES:\n"
             "1. Base your answer strictly on the provided context snippets.\n"

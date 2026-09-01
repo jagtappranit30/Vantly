@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Vantly End-to-End Assessment Evaluation
-========================================
+Productive Point End-to-End Assessment Evaluation
+=================================================
 Tests the full /api/assess pipeline by uploading the Meridian fixture
 document and validating the extracted metrics, scoring, and recommendations
 against known ground-truth values.
@@ -81,33 +81,40 @@ def check_metric(name: str, actual, expected, tolerance_pct: float = 5.0) -> boo
     passed = pct_diff <= tolerance_pct
     status = colour("PASS", "green") if passed else colour("FAIL", "red")
     print(f"  {status} {name}: {actual} (expected {expected}, diff {pct_diff:.1f}%)")
-    return passed
+# ANSI Colours
+COLOURS = {
+    "green": "\033[92m",
+    "red": "\033[91m",
+    "yellow": "\033[93m",
+    "blue": "\033[94m",
+    "bold": "\033[1m",
+    "dim": "\033[2m",
+    "reset": "\033[0m",
+}
 
 
-def check_range(name: str, actual, min_val: float, max_val: float) -> bool:
-    """Check if a value falls within an expected range."""
-    if actual is None:
-        print(f"  {colour('FAIL', 'red')} {name}: got None, expected [{min_val}, {max_val}]")
-        return False
-    passed = min_val <= actual <= max_val
-    status = colour("PASS", "green") if passed else colour("FAIL", "red")
-    print(f"  {status} {name}: {actual} (expected [{min_val}, {max_val}])")
-    return passed
+def colour(text: str, c: str) -> str:
+    return f"{COLOURS.get(c, '')}{text}{COLOURS['reset']}"
 
 
-def run_assessment(base_url: str, fixture_path: Path, sector: str = "Manufacturing") -> dict:
-    """Upload fixture to /api/assess and return the response."""
-    url = f"{base_url}/api/assess"
-    print(f"\n{colour('Uploading', 'cyan')} {fixture_path.name} to {url}...")
+def run_assessment(url: str, fixture_path: Path, sector: str) -> dict:
+    """Uploads fixture to /api/assess and returns the parsed JSON response."""
+    print(f"\n{colour('--- 1. Uploading Fixture ---', 'bold')}")
+    print(f"  URL:     {url}/api/assess")
+    print(f"  Fixture: {fixture_path.name} ({fixture_path.stat().st_size:,} bytes)")
+    print(f"  Sector:  {sector}")
 
     with open(fixture_path, "rb") as f:
         files = {"file": (fixture_path.name, f, "text/plain")}
-        data = {"sector": sector, "companyName": ""}
-        with httpx.Client(timeout=180.0) as client:
-            resp = client.post(url, files=files, data=data)
+        data = {
+            "sector": sector,
+            "companyName": "Meridian Manufacturing Ltd",
+        }
+        with httpx.Client(timeout=120.0) as client:
+            resp = client.post(f"{url}/api/assess", files=files, data=data)
 
     if resp.status_code != 200:
-        print(f"\n{colour('ERROR', 'red')}: /api/assess returned {resp.status_code}")
+        print(f"  {colour('ERROR', 'red')}: /api/assess returned {resp.status_code}")
         print(resp.text[:500])
         sys.exit(1)
 
@@ -213,8 +220,8 @@ def evaluate(result: dict) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="End-to-end assessment evaluation for Vantly")
-    parser.add_argument("--url", default="http://localhost:3000", help="Base URL of the Vantly server")
+    parser = argparse.ArgumentParser(description="End-to-end assessment evaluation for Productive Point")
+    parser.add_argument("--url", default="http://localhost:3000", help="Base URL of the Productive Point server")
     parser.add_argument("--fixture", default=str(FIXTURE_PATH), help="Path to fixture file")
     parser.add_argument("--sector", default="Manufacturing", help="Sector for assessment")
     parser.add_argument("--output", default=None, help="Path to save raw JSON response")

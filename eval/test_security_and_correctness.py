@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Vantly Security & Correctness Automated Test Suite
-===================================================
+Productive Point Security & Correctness Automated Test Suite
+============================================================
 Tests core production security, input validation, financial calculation logic,
-and RAG authorization boundaries against the running Vantly server.
+and RAG authorization boundaries against the running Productive Point server.
 
 Usage:
     cd eval
@@ -135,12 +135,12 @@ def test_input_bounds_capping(base_url: str) -> bool:
             return False
 
 def main():
-    parser = argparse.ArgumentParser(description="Vantly Security and Correctness Test Suite")
-    parser.add_argument("--url", default="http://localhost:3000", help="Base URL of Vantly server")
+    parser = argparse.ArgumentParser(description="Productive Point Security and Correctness Test Suite")
+    parser.add_argument("--url", default="http://localhost:3000", help="Base URL of Productive Point server")
     args = parser.parse_args()
 
     print(f"{colour('═' * 60, 'bold')}")
-    print(f"{colour('VANLY SECURITY & PRODUCTION RELIABILITY TEST SUITE', 'bold')}")
+    print(f"{colour('PRODUCTIVE POINT SECURITY & PRODUCTION RELIABILITY TEST SUITE', 'bold')}")
     print(f"{colour('═' * 60, 'bold')}")
 
     t1 = test_file_validation(args.url)

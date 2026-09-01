@@ -1,6 +1,6 @@
-# Vantly RAG Evaluation Harness
+# Productive Point RAG Evaluation Harness
 
-A proper RAGAS evaluation of the Vantly Python RAG microservice using a hand-written
+A proper RAGAS evaluation of the Productive Point Python RAG microservice using a hand-written
 ground-truth QA set and a synthetic financial fixture document.
 
 ## What this measures
@@ -34,7 +34,7 @@ eval/
 ## Prerequisites
 
 - Python 3.11+
-- The Vantly application running at `http://localhost:3000` (Node.js server proxying to Python RAG engine)
+- The Productive Point application running at `http://localhost:3000` (Node.js server proxying to Python RAG engine)
   - **With Docker**: `docker compose up` from the project root
   - **Without Docker**: `npm start` and `cd rag_service && python main.py`
 - Local Ollama running Qwen 2.5 (`qwen2.5:7b`) for generation
@@ -75,7 +75,7 @@ python evaluate.py --output results/v2_after_rerank.csv
 ## Illustrative Example Output
 
 ```
-─────────────── Vantly RAG Evaluation Harness ───────────────
+─────────────── Productive Point RAG Evaluation Harness ───────────────
   RAG service : http://localhost:3000/api/rag
   Runs        : 3
   top_k       : 5

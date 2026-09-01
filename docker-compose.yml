@@ -1,9 +1,9 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: vantly-db
+    container_name: productive-point-db
     environment:
-      POSTGRES_DB: vantly
+      POSTGRES_DB: productive_point
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -11,7 +11,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d vantly"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d productive_point"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: vantly-app
+    container_name: productive-point-app
     depends_on:
       db:
         condition: service_healthy
@@ -29,7 +29,7 @@ services:
     environment:
       - SQL_HOST=db
       - SQL_PORT=5432
-      - SQL_DB_NAME=vantly
+      - SQL_DB_NAME=productive_point
       - SQL_USER=postgres
       - SQL_PASSWORD=postgres
       - SQL_ADMIN_USER=postgres

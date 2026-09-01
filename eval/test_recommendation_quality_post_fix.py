@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Vantly — Post-Fix Recommendation Quality Integration Test
-=========================================================
+Productive Point — Post-Fix Recommendation Quality Integration Test
+===================================================================
 Verifies the recommendation wiring fix against the live /api/assess endpoint.
 
 This is a POST-FIX verification, separate from the pre-fix evaluation artefacts in:
@@ -11,9 +11,6 @@ Pre-fix artefacts are NOT overwritten. Post-fix results are saved separately to:
   eval/results/recommendation_quality_post_fix/
 
 Usage:
-    cd /Users/pranitjagtap/Downloads/vantly
-    eval/.venv/bin/python eval/test_recommendation_quality_post_fix.py
-    # or
     python3 eval/test_recommendation_quality_post_fix.py
 """
 
@@ -149,7 +146,7 @@ def run_integration_test():
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(colour("\nVantly — Post-Fix Recommendation Wiring Verification", "bold"))
+    print(colour("\nProductive Point — Post-Fix Recommendation Wiring Verification", "bold"))
     print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Endpoint: {BASE_URL}/api/assess")
     print(f"Note: Pre-fix artefacts in eval/results/recommendation_quality/ are NOT modified.")

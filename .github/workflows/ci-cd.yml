@@ -1,4 +1,4 @@
-name: Vantly CI/CD Pipeline
+name: Productive Point CI/CD Pipeline
 
 on:
   push:
@@ -75,7 +75,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
-          tags: vantly-app:latest
+          tags: productive-point-app:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

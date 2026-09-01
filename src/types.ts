@@ -9,6 +9,7 @@ export interface FinancialMetrics {
   currentAssets: number | null;
   currentLiabilities: number | null;
   digitalTools: string[];
+  digitalMaturityLevel?: "Low" | "Medium" | "High" | null;
   confidence: number;
   extractedJustifications: string;
 }
@@ -40,6 +41,8 @@ export interface AssessmentScores {
   productivityIndex: number; // 0-100
   digitalMaturityScore: number; // 0-100
   digitalMaturityLevel: "Low" | "Medium" | "High";
+  digitalPathwayAnalysis?: string;
+  digitalRecommendation?: string;
   qualitativeAnalysis: string;
   recommendations: string[];
   /** Provenance field: indicates whether recommendations came from the LLM or the hardcoded fallback. */

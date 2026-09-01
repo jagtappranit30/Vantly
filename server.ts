@@ -337,17 +337,57 @@ function calculateScores(metrics: any, sectorName: string, llmRecommendations?: 
   const financialHealthScore = Math.round((marginScore + liquidityScore) * 10) / 10;
   const productivityIndex = Math.round((labourEfficiencyScore + financialHealthScore) * 10) / 10;
 
-  // Digital Maturity Score
-  let toolsCount = metrics.digitalTools ? metrics.digitalTools.length : 0;
-  let digitalMaturityScore = 30 + toolsCount * 12;
-  const level = metrics.digitalMaturityLevel || "Medium";
-  if (level === "High") digitalMaturityScore += 25;
-  if (level === "Medium") digitalMaturityScore += 10;
-  digitalMaturityScore = Math.min(Math.max(Math.round(digitalMaturityScore), 10), 100);
+  // Digital Maturity Calculation: grounded in verified digital tool signals and document evidence
+  const toolsCount = metrics.digitalTools ? metrics.digitalTools.length : 0;
+  let level: "Low" | "Medium" | "High";
 
-    const validLLMRecs = validateLLMRecommendations(llmRecommendations);
-    const recommendations = validLLMRecs ?? FALLBACK_RECOMMENDATIONS;
-    const recommendationSource: "llm" | "fallback" = validLLMRecs !== null ? "llm" : "fallback";
+  if (metrics.digitalMaturityLevel && ["Low", "Medium", "High"].includes(metrics.digitalMaturityLevel)) {
+    level = metrics.digitalMaturityLevel as "Low" | "Medium" | "High";
+  } else if (toolsCount >= 4) {
+    level = "High";
+  } else if (toolsCount >= 1) {
+    level = "Medium";
+  } else {
+    level = "Low";
+  }
+
+  // If 0 tools are detected, ensure level is Low unless explicitly stated otherwise
+  if (toolsCount === 0 && (!metrics.digitalMaturityLevel || metrics.digitalMaturityLevel === "Medium")) {
+    level = "Low";
+  }
+
+  let digitalMaturityScore: number;
+  if (level === "High") {
+    digitalMaturityScore = Math.min(100, Math.max(75, 70 + toolsCount * 6));
+  } else if (level === "Medium") {
+    digitalMaturityScore = Math.min(74, Math.max(40, 35 + toolsCount * 12));
+  } else {
+    // Low / Undisclosed digital tools
+    digitalMaturityScore = toolsCount === 0 ? 20 : 35;
+  }
+  // Dynamic contextual pathway & automation recommendation
+  const company = metrics.companyName || "The enterprise";
+  const toolList = metrics.digitalTools && metrics.digitalTools.length > 0 ? metrics.digitalTools : [];
+  const toolStr = toolList.length > 0 ? toolList.join(", ") : "no explicit cloud platforms";
+  
+  let digitalPathwayAnalysis = "";
+  let digitalRecommendation = "";
+
+  if (level === "High") {
+    digitalPathwayAnalysis = `${company} displays advanced digital maturity within the ${sectorName} sector (leveraging ${toolStr}). Operating on interconnected digital infrastructure significantly strengthens output per payroll and allows scaling without linear administrative costs.`;
+    digitalRecommendation = `Consolidate API workflows across ${toolList.slice(0, 2).join(" and ") || "enterprise systems"} to automate cross-functional reconciliation and real-time inventory visibility.`;
+  } else if (level === "Medium") {
+    digitalPathwayAnalysis = `${company} maintains foundational digital tools in ${sectorName} (${toolStr}). While core record-keeping is digitised, workflow integration gaps remain, creating opportunities to accelerate labour productivity toward upper benchmark percentiles.`;
+    digitalRecommendation = `Implement automated data-capture companion tools and live bank feeds into ${toolList[0] || "existing bookkeeping software"} to eliminate routine manual ledger entries.`;
+  } else {
+    // Low
+    digitalPathwayAnalysis = `Analysis indicates ${company} has an undisclosed or legacy bookkeeping setup in the ${sectorName} sector (${toolStr}). Sector peers adopting unified cloud accounting report up to 2.5x higher output per payroll than firms relying on manual ledgers.`;
+    digitalRecommendation = `Deploy a modern cloud accounting foundation (e.g., Xero or QuickBooks) with digital invoicing to establish real-time operational visibility and cut administrative overhead.`;
+  }
+
+  const validLLMRecs = validateLLMRecommendations(llmRecommendations);
+  const recommendations = validLLMRecs ?? FALLBACK_RECOMMENDATIONS;
+  const recommendationSource: "llm" | "fallback" = validLLMRecs !== null ? "llm" : "fallback";
 
   const scores: AssessmentScores = {
     labourEfficiencyScore,
@@ -367,7 +407,9 @@ function calculateScores(metrics: any, sectorName: string, llmRecommendations?: 
     },
     productivityIndex,
     digitalMaturityScore,
-    digitalMaturityLevel: level as "Low" | "Medium" | "High",
+    digitalMaturityLevel: level,
+    digitalPathwayAnalysis,
+    digitalRecommendation,
     qualitativeAnalysis: metrics.qualitativeAnalysis || "Assessment completed successfully based on provided financials.",
     recommendations,
     recommendationSource,
@@ -494,7 +536,7 @@ app.post("/api/export-docs", requireAuth, async (req: AuthRequest, res) => {
     const docs = google.docs({ version: "v1", auth: oauth2Client });
 
     // Create a brand new Google Doc
-    const docTitle = `${run.companyName} - Vantly Business Performance Report`;
+    const docTitle = `${run.companyName} - Productive Point Business Performance Report`;
     const createRes = await docs.documents.create({
       requestBody: {
         title: docTitle,
@@ -506,7 +548,7 @@ app.post("/api/export-docs", requireAuth, async (req: AuthRequest, res) => {
       throw new Error("Failed to create Google Doc");
     }
 
-    const textContent = `VANLY BUSINESS PERFORMANCE & PRODUCTIVITY REPORT
+    const textContent = `PRODUCTIVE POINT BUSINESS PERFORMANCE & PRODUCTIVITY REPORT
 ================================================================================
 Company Name:       ${run.companyName}
 Date of Assessment: ${new Date(run.date).toLocaleDateString()}
@@ -516,7 +558,7 @@ Source Document:    ${run.fileName} (${run.fileType})
 
 1. EXECUTIVE SUMMARY
 --------------------------------------------------------------------------------
-Vantly Productivity Index: ${scores.productivityIndex} / 100
+Productive Point Productivity Index: ${scores.productivityIndex} / 100
 Labour Efficiency Score:   ${scores.labourEfficiencyScore} / 50
 Financial Health Score:    ${scores.financialHealthScore} / 50
 Digital Maturity Level:    ${scores.digitalMaturityLevel} (Score: ${scores.digitalMaturityScore} / 100)
@@ -544,6 +586,12 @@ ${scores.qualitativeAnalysis}
 Identified Systems & Platforms:
 ${metrics.digitalTools && metrics.digitalTools.length > 0 ? metrics.digitalTools.map((t: string) => `  - ${t}`).join("\n") : "  - No software or bookkeeping packages explicitly detected."}
 
+Operational Leverage Pathway:
+${scores.digitalPathwayAnalysis || "Digital readiness analysis completed."}
+
+Automation Recommendation:
+${scores.digitalRecommendation || "Deploy cloud bookkeeping integrations to streamline administrative workflows."}
+
 4. STRATEGIC PRODUCTIVITY RECOMMENDATIONS
 --------------------------------------------------------------------------------
 Based on this analysis, we recommend implementing the following high-impact operational improvements:
@@ -551,7 +599,7 @@ Based on this analysis, we recommend implementing the following high-impact oper
 ${scores.recommendations.map((rec: string, index: number) => `[${index + 1}] ${rec}`).join("\n\n")}
 
 --------------------------------------------------------------------------------
-Report generated automatically by Vantly - See your business clearly.
+Report generated automatically by Productive Point - See your business clearly.
 `;
 
     // Populate Google Doc with the generated report content
@@ -671,13 +719,14 @@ CRITICAL ANTI-HALLUCINATION INSTRUCTIONS:
 - You must ONLY extract numbers that are explicitly written in the attached text, or directly derivable from them with 100% mathematical certainty.
 - NEVER guess, approximate, estimate, or extrapolate any of these metrics: revenue, headcount, cogs, payroll, grossMargin, operatingMargin, currentAssets, currentLiabilities.
 - UK / micro-entity accounts frequently do NOT disclose headcount, payroll, or operating margin values. If missing, return null.
+- DIGITAL TOOLS ("digitalTools"): Extract ONLY software platforms, ERP, CRM, or accounting systems that are EXPLICITLY NAMED in the document text. If NO software or IT systems are mentioned in the document, you MUST return an empty array [] and set "digitalMaturityLevel": "Low". NEVER invent, assume, or default to tools (such as Sage, Excel, Verizon, etc.) if they do not appear in the text.
 - In the "extractedJustifications" string, document the exact page number, section heading, or calculation note for each metric found (e.g., "Revenue: Page 2, Statement of Profit or Loss, 'Turnover: £450,000'").
 - If a metric is missing, explicitly state in "extractedJustifications" that it was not disclosed.
 
 Your task is to:
 1. Extract key financial metrics with highest precision. Use null if missing.
-2. Scan for mentions of software systems, bookkeeping packages, or digital ERP/CRM tools.
-3. Classify digital maturity level as 'Low', 'Medium', or 'High'.
+2. Scan for mentions of software systems, bookkeeping packages, or digital ERP/CRM tools. Return [] if none mentioned.
+3. Classify digital maturity level as 'Low' (0 tools / manual), 'Medium' (1-3 tools), or 'High' (4+ tools or enterprise ERP).
 4. Formulate 3 to 5 practical productivity improvement recommendations.
 5. Provide a crisp qualitative summary.
 
@@ -799,6 +848,89 @@ You MUST return ONLY a JSON object (no markdown, no backticks) with this structu
       return true;
     }
 
+    // Deterministic scanner for digital software / systems explicitly mentioned in document text
+    function extractKnownDigitalTools(text: string): string[] {
+      if (!text) return [];
+      const knownPatterns: { name: string; regex: RegExp }[] = [
+        { name: "Xero", regex: /\bXero\b/i },
+        { name: "QuickBooks", regex: /\b(?:QuickBooks|Quick\s*Books|QB\s*Online)\b/i },
+        { name: "Sage 50", regex: /\bSage\s*(?:50|Line\s*50)\b/i },
+        { name: "Sage Intacct", regex: /\bSage\s*Intacct\b/i },
+        { name: "Sage", regex: /\bSage\b/i },
+        { name: "SAP", regex: /\bSAP(?:\s*(?:Business\s*One|ERP|S\/4HANA))?\b/i },
+        { name: "Oracle NetSuite", regex: /\b(?:Oracle\s*NetSuite|NetSuite)\b/i },
+        { name: "Oracle", regex: /\bOracle\b/i },
+        { name: "Microsoft Dynamics", regex: /\b(?:Microsoft\s*Dynamics|Dynamics\s*365|Business\s*Central|Navision)\b/i },
+        { name: "Microsoft Excel", regex: /\b(?:Microsoft\s*Excel|MS\s*Excel|Excel\s*spreadsheets?)\b/i },
+        { name: "Excel", regex: /\bExcel\b/i },
+        { name: "Dext", regex: /\b(?:Dext|Receipt\s*Bank)\b/i },
+        { name: "Hubdoc", regex: /\bHubdoc\b/i },
+        { name: "AutoEntry", regex: /\bAutoEntry\b/i },
+        { name: "FreeAgent", regex: /\bFreeAgent\b/i },
+        { name: "KashFlow", regex: /\bKashFlow\b/i },
+        { name: "BrightPay", regex: /\bBrightPay\b/i },
+        { name: "Zoho Books", regex: /\bZoho\s*Books\b/i },
+        { name: "Zoho CRM", regex: /\bZoho\s*CRM\b/i },
+        { name: "HubSpot", regex: /\bHubSpot\b/i },
+        { name: "Salesforce", regex: /\bSalesforce\b/i },
+        { name: "Shopify", regex: /\bShopify\b/i },
+        { name: "Stripe", regex: /\bStripe\b/i },
+        { name: "Square", regex: /\bSquare\b/i },
+        { name: "Monday.com", regex: /\bMonday\.com\b/i },
+        { name: "Asana", regex: /\bAsana\b/i },
+        { name: "Trello", regex: /\bTrello\b/i },
+        { name: "Jira", regex: /\bJira\b/i },
+        { name: "Slack", regex: /\bSlack\b/i },
+        { name: "Verizon Connect", regex: /\bVerizon\s*Connect\b/i },
+        { name: "Fleetio", regex: /\bFleetio\b/i },
+        { name: "EPOS Now", regex: /\bEPOS\s*Now\b/i },
+        { name: "Lightspeed", regex: /\bLightspeed\b/i },
+        { name: "Vend", regex: /\bVend\b/i },
+        { name: "Unleashed", regex: /\bUnleashed\b/i },
+        { name: "Dear Systems", regex: /\bDear\s*Systems\b/i },
+        { name: "Cin7", regex: /\bCin7\b/i },
+      ];
+
+      const matched = new Set<string>();
+      for (const p of knownPatterns) {
+        if (p.regex.test(text)) {
+          if (p.name === "Sage" && (matched.has("Sage 50") || matched.has("Sage Intacct"))) continue;
+          if (p.name === "Oracle" && matched.has("Oracle NetSuite")) continue;
+          if (p.name === "Excel" && matched.has("Microsoft Excel")) continue;
+          matched.add(p.name);
+        }
+      }
+      return Array.from(matched);
+    }
+
+    // Filter LLM-proposed digital tools against actual document text to eliminate hallucinations
+    function sanitizeDigitalTools(llmTools: any, rawDocText: string): string[] {
+      const deterministicTools = extractKnownDigitalTools(rawDocText);
+      const verifiedTools = new Set<string>(deterministicTools);
+
+      if (Array.isArray(llmTools)) {
+        const lowerDoc = rawDocText.toLowerCase();
+        for (const tool of llmTools) {
+          if (typeof tool === "string") {
+            const cleanTool = tool.trim();
+            if (cleanTool.length >= 2 && cleanTool.length <= 50) {
+              const cleanLower = cleanTool.toLowerCase();
+              if (lowerDoc.includes(cleanLower)) {
+                verifiedTools.add(cleanTool);
+              } else {
+                const significantWords = cleanLower.split(/\s+/).filter(w => w.length >= 4 && !["system", "software", "tool", "cloud", "online", "suite"].includes(w));
+                if (significantWords.length > 0 && significantWords.every(w => lowerDoc.includes(w))) {
+                  verifiedTools.add(cleanTool);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return Array.from(verifiedTools);
+    }
+
     // Helper: Parse CSV line respecting quoted strings
     function parseCSVLine(line: string): string[] {
       const result: string[] = [];
@@ -899,6 +1031,21 @@ You MUST return ONLY a JSON object (no markdown, no backticks) with this structu
         }
       }
 
+      // Detect digital tools deterministically from document text
+      const detectedTools = extractKnownDigitalTools(text);
+      if (detectedTools.length > 0) {
+        result.digitalTools = detectedTools;
+      }
+
+      // Detect explicit digital maturity level declarations
+      const matMatch = text.match(/digital\s*maturity(?:\s*rating|\s*level|\s*classification)?\s*[:\-]?\s*(HIGH|MEDIUM|LOW)/i);
+      if (matMatch) {
+        const rawMat = matMatch[1].toUpperCase();
+        if (rawMat === "HIGH") result.digitalMaturityLevel = "High";
+        else if (rawMat === "MEDIUM") result.digitalMaturityLevel = "Medium";
+        else if (rawMat === "LOW") result.digitalMaturityLevel = "Low";
+      }
+
       return result;
     }
 
@@ -942,6 +1089,23 @@ You MUST return ONLY a JSON object (no markdown, no backticks) with this structu
 
     const companyName = customCompanyName || preParsed.companyName || llmResult.companyName || "SME Enterprise";
 
+    // Strictly verified digital tools (no hallucinations permitted)
+    const verifiedDigitalTools = sanitizeDigitalTools(llmResult.digitalTools, docTextForParsing);
+
+    // Resolve digital maturity level grounded in document evidence
+    let resolvedDigitalLevel: "Low" | "Medium" | "High";
+    if (preParsed.digitalMaturityLevel) {
+      resolvedDigitalLevel = preParsed.digitalMaturityLevel;
+    } else if (llmResult.digitalMaturityLevel && ["Low", "Medium", "High"].includes(llmResult.digitalMaturityLevel)) {
+      if (verifiedDigitalTools.length === 0 && llmResult.digitalMaturityLevel !== "Low") {
+        resolvedDigitalLevel = "Low";
+      } else {
+        resolvedDigitalLevel = llmResult.digitalMaturityLevel;
+      }
+    } else {
+      resolvedDigitalLevel = verifiedDigitalTools.length >= 4 ? "High" : verifiedDigitalTools.length >= 1 ? "Medium" : "Low";
+    }
+
     const metrics: FinancialMetrics = {
       companyName,
       revenue: rev,
@@ -952,7 +1116,8 @@ You MUST return ONLY a JSON object (no markdown, no backticks) with this structu
       operatingMargin: opM,
       currentAssets: ca,
       currentLiabilities: cl,
-      digitalTools: llmResult.digitalTools || [],
+      digitalTools: verifiedDigitalTools,
+      digitalMaturityLevel: resolvedDigitalLevel,
       confidence: llmResult.confidence || 85,
       extractedJustifications: llmResult.extractedJustifications || "Extracted using deterministic general ledger analysis."
     };

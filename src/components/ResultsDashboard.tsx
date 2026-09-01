@@ -92,7 +92,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] opacity-25 -mr-16 -mt-16 animate-pulse"></div>
 
             <div className="relative z-10">
-              <span className="text-xs font-bold uppercase tracking-widest text-zinc-450">Vantly Productivity Index</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-zinc-450">Productive Point Productivity Index</span>
               <div className="flex items-baseline gap-4 mt-3">
                 <div className="h-16 w-32 bg-zinc-800 rounded-2xl animate-pulse"></div>
                 <div className="w-24 h-6 bg-indigo-600/30 rounded-full animate-pulse"></div>
@@ -365,7 +365,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
 
           <div className="relative z-10 pt-6 border-t border-zinc-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-[10px] font-mono text-zinc-500 uppercase tracking-wider mt-4">
             <span>Formula: Avg(Labour Efficiency, Financial Health)</span>
-            <span>Ref: Vantly SME Analytics Framework</span>
+            <span>Ref: Productive Point SME Analytics Framework</span>
           </div>
         </div>
 
@@ -633,15 +633,31 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
                 </div>
               </div>
 
-              <div className="p-6 bg-zinc-900 border border-zinc-800 text-white rounded-2xl flex flex-col justify-between">
+              <div className="p-6 bg-white border border-zinc-200 rounded-2xl flex flex-col justify-between shadow-2xs">
                 <div>
-                  <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Operational Leverage Pathways</h4>
-                  <p className="text-zinc-300 text-xs leading-relaxed font-medium">SMEs running robust cloud suites (e.g. Xero, Sage, CRM, connected bank APIs) typically experience up to 2.5x higher output per payroll than peers with paper or legacy Excel records.</p>
+                  <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2">Operational Leverage Pathways</h4>
+                  <p className="text-zinc-600 text-xs leading-relaxed font-medium">
+                    {scores.digitalPathwayAnalysis || (
+                      scores.digitalMaturityLevel === "High"
+                        ? `${companyName} displays advanced digital readiness in ${sector} (${metrics.digitalTools.join(", ") || "integrated software"}). This infrastructure provides high operational leverage against sector benchmarks.`
+                        : scores.digitalMaturityLevel === "Medium"
+                        ? `${companyName} exhibits foundational digital capabilities in ${sector} (${metrics.digitalTools.join(", ") || "core tools"}). Bridging operational workflows can accelerate labour output toward upper benchmark tiers.`
+                        : `${companyName} operates with undisclosed or legacy software in ${sector}. Migrating core workflows to modern cloud systems offers immediate operational leverage.`
+                    )}
+                  </p>
                 </div>
 
-                <div className="pt-6 border-t border-zinc-800/80 mt-6">
-                  <span className="text-[10px] text-amber-400 font-bold block mb-1.5 uppercase tracking-wider">💡 Automation Recommendation:</span>
-                  <p className="text-zinc-300 text-xs leading-relaxed italic font-medium">{scores.digitalMaturityLevel === "Low" ? "Migrate core financial and payroll logs onto a unified cloud platform (Xero or QuickBooks) with active bank feeds to eradicate admin delays." : scores.digitalMaturityLevel === "Medium" ? "Incorporate OCR companion utilities (e.g., Hubdoc, Dext) to fully automate expense receipt entries and shorten invoicing feedback loops." : "Consider bridging client CRM pipelines via webhooks into general ledgers to sync inventory forecasting directly with sales trends."}</p>
+                <div className="pt-5 border-t border-zinc-150 mt-6 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/70">
+                  <span className="text-[10px] text-indigo-700 font-bold block mb-1.5 uppercase tracking-wider">💡 Automation Recommendation:</span>
+                  <p className="text-zinc-700 text-xs leading-relaxed italic font-medium">
+                    {scores.digitalRecommendation || (
+                      scores.digitalMaturityLevel === "Low"
+                        ? `Deploy a unified cloud accounting platform (e.g. Xero or QuickBooks) to replace manual processes and automate bookkeeping in ${sector}.`
+                        : scores.digitalMaturityLevel === "Medium"
+                        ? `Connect automated receipt capture and bank feed sync to ${metrics.digitalTools[0] || "existing accounting software"} to shorten invoice-to-cash latency.`
+                        : `Integrate real-time API webhooks between client management, operations, and general ledgers to maximise enterprise efficiency.`
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
@@ -670,7 +686,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
                 </div>
               </div>
               <p className="text-xs text-zinc-600 leading-relaxed font-semibold">
-                To maintain analytical precision and rigor, Vantly operates on a strict <strong className="text-indigo-600 font-extrabold">Direct-Evidence constraint</strong>. If a financial metric is not explicitly stated in your uploaded accounts or mathematically derivable with absolute certainty, the system returns <code className="px-1 py-0.5 rounded bg-zinc-100 font-mono font-bold text-[10px]">null (N/A)</code> rather than guessing or interpolating.
+                To maintain analytical precision and rigor, Productive Point operates on a strict <strong className="text-indigo-600 font-extrabold">Direct-Evidence constraint</strong>. If a financial metric is not explicitly stated in your uploaded accounts or mathematically derivable with absolute certainty, the system returns <code className="px-1 py-0.5 rounded bg-zinc-100 font-mono font-bold text-[10px]">null (N/A)</code> rather than guessing or interpolating.
               </p>
 
               {/* Checkbox status checklist */}
@@ -719,7 +735,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Audit Trace Log:</span>
               <p className="text-xs text-zinc-650 font-mono leading-relaxed whitespace-pre-wrap bg-white p-4 rounded-xl border border-zinc-200 font-semibold shadow-2xs">{metrics.extractedJustifications}</p>
               <div className="flex items-center justify-between text-[10px] font-bold uppercase text-zinc-400 mt-3.5">
-                <span>Extraction Engine: Vantly Core</span>
+                <span>Extraction Engine: Productive Point Core</span>
                 <span>Trace Confidence: {metrics.confidence}%</span>
               </div>
             </div>
