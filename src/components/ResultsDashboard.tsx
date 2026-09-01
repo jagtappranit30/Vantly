@@ -63,7 +63,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
     const displayCompany = loadingCompanyName || "Your Company";
     const displaySector = loadingSector || "Manufacturing";
     return (
-      <div id="results-skeleton-root" className="space-y-8 max-w-5xl mx-auto">
+      <div id="results-skeleton-root" className="space-y-8 w-full">
         {/* Header Actions Skeleton */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-zinc-200">
           <div className="space-y-2">
@@ -268,7 +268,7 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
   ];
 
   return (
-    <div id="results-dashboard-root" className="space-y-8 max-w-5xl mx-auto pb-12">
+    <div id="results-dashboard-root" className="space-y-8 w-full pb-12">
       {/* Header Actions */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-zinc-200">
         <div>

@@ -79,7 +79,7 @@ export default function UploadForm({ onStartAssessment, isLoading, error, setErr
   };
 
   return (
-    <div id="upload-form-container" className="max-w-4xl mx-auto">
+    <div id="upload-form-container" className="w-full">
       <AnimatePresence mode="wait">
         <motion.form
           key="form-state"
