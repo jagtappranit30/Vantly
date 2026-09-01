@@ -76,7 +76,7 @@ def calculate_productivity_scores(metrics: dict, sector_benchmarks: dict) -> dic
 
 def main():
     print(f"{colour('═' * 60, 'bold')}")
-    print(f"{colour('VANLY PRODUCTIVITY SCORING ENGINE EVALUATION SUITE', 'bold')}")
+    print(f"{colour('PRODUCTIVE POINT SCORING ENGINE EVALUATION SUITE', 'bold')}")
     print(f"{colour('═' * 60, 'bold')}")
 
     # Ground truth test benchmarks for Services sector
