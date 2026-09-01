@@ -219,8 +219,8 @@ export default function App() {
   if (!user && !isGuestMode) {
     return (
       <div id="login-landing-container" className="min-h-screen flex flex-col bg-zinc-50 text-zinc-800 transition-colors duration-300">
-        <header className="w-full bg-white border-b border-zinc-200 px-6 py-4.5 transition-colors duration-300">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <header className="w-full bg-white border-b border-zinc-200 px-6 lg:px-10 py-4.5 transition-colors duration-300">
+          <div className="max-w-[1800px] w-full mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ProductivePointLogo className="w-10 h-10" />
               <div>
@@ -241,8 +241,8 @@ export default function App() {
           </div>
         </header>
 
-        <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-14 flex flex-col justify-center">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-5xl mx-auto w-full">
+        <main className="flex-1 max-w-[1800px] w-full mx-auto px-6 lg:px-10 py-12 flex flex-col justify-center">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-[1600px] mx-auto w-full">
             {/* Main Welcome Bento Block */}
             <div className="lg:col-span-2 bg-zinc-900 text-white rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between gap-8 min-h-[380px]">
               {/* Subtle background glow */}
