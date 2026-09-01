@@ -278,7 +278,7 @@ export default function App() {
                     <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
                     <span className="text-[9px] font-mono text-zinc-400 font-bold tracking-widest uppercase">Platform Metrics</span>
                   </div>
-                  <span className="text-[9px] font-bold text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-850">VAN v3</span>
+                  <span className="text-[9px] font-bold text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-850">PP v3</span>
                 </div>
 
                 <div className="space-y-4">

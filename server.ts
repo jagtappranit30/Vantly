@@ -90,10 +90,10 @@ function checkGuestRateLimit(ip: string): boolean {
   return true;
 }
 
-// Setup in-memory file upload middleware (max 15MB)
+// Setup in-memory file upload middleware (max 100MB)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 },
 });
 
 // Multer error handling middleware wrapper
@@ -101,7 +101,7 @@ const handleUpload = (req: express.Request, res: express.Response, next: express
   upload.single("file")(req, res, (err: any) => {
     if (err instanceof multer.MulterError) {
       if (err.code === "LIMIT_FILE_SIZE") {
-        return res.status(400).json({ error: "File size exceeds the 15 MB limit." });
+        return res.status(400).json({ error: "File size exceeds the 100 MB limit." });
       }
       return res.status(400).json({ error: `Upload error: ${err.message}` });
     } else if (err) {

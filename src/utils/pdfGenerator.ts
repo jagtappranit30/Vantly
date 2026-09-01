@@ -32,7 +32,7 @@ export function generateAssessmentPDF(assessment: AssessmentRun) {
     doc.setFont("Helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(113, 113, 122); // zinc-500
-    doc.text("VANLYTICS • CORPORATE PRODUCTIVITY REPORT", marginX, 12);
+    doc.text("PRODUCTIVE POINT • CORPORATE PRODUCTIVITY REPORT", marginX, 12);
     doc.text(`ID: ${assessment.id.toUpperCase()}`, pageWidth - marginX, 12, { align: "right" });
 
     // Header divider line

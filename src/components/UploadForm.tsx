@@ -43,8 +43,8 @@ export default function UploadForm({ onStartAssessment, isLoading, error, setErr
       setError("Unsupported format. Please upload a PDF or CSV document.");
       return;
     }
-    if (selectedFile.size > 15 * 1024 * 1024) {
-      setError("File exceeds 15MB limit. Please upload a smaller document.");
+    if (selectedFile.size > 100 * 1024 * 1024) {
+      setError("File exceeds 100MB limit. Please upload a smaller document.");
       return;
     }
     setFile(selectedFile);
