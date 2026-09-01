@@ -19,9 +19,10 @@ interface ResultsDashboardProps {
 // Custom Premium Tooltip Component
 const CustomTooltip = ({ active, payload, label, formatter }: any) => {
   if (active && payload && payload.length) {
+    const title = payload[0]?.payload?.fullName || label;
     return (
       <div className="bg-white border border-zinc-150 p-3.5 rounded-xl shadow-xl font-sans text-2xs md:text-xs space-y-1.5 transition-all">
-        <p className="font-bold text-zinc-900">{label}</p>
+        <p className="font-bold text-zinc-900">{title}</p>
         {payload.map((p: any, idx: number) => (
           <div key={idx} className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.fill || p.color || "#4f46e5" }} />
@@ -247,12 +248,13 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
 
   const status = getIndexStatus(scores.productivityIndex);
 
-  // Setup comparative data for charts
+  // Setup comparative data for charts with clean non-colliding labels
+  const shortActualName = companyName ? (companyName.length > 14 ? companyName.slice(0, 12) + "…" : companyName) : "SME Actual";
   const revPerEmpData = [
-    { name: companyName || "SME Actual", value: scores.labourDetails.revenuePerEmployee, fill: "#4f46e5" },
-    { name: `${sector} P25`, value: benchmarks.revenue_per_employee.p25, fill: "#94a3b8" },
-    { name: `${sector} Median (P50)`, value: benchmarks.revenue_per_employee.p50, fill: "#64748b" },
-    { name: `${sector} P75`, value: benchmarks.revenue_per_employee.p75, fill: "#334155" },
+    { name: shortActualName, fullName: companyName || "SME Actual", value: scores.labourDetails.revenuePerEmployee, fill: "#4f46e5" },
+    { name: "Sector P25", fullName: `${sector} 25th Percentile (P25)`, value: benchmarks.revenue_per_employee.p25, fill: "#94a3b8" },
+    { name: "Sector Median", fullName: `${sector} Median Benchmark (P50)`, value: benchmarks.revenue_per_employee.p50, fill: "#64748b" },
+    { name: "Sector P75", fullName: `${sector} 75th Percentile (P75)`, value: benchmarks.revenue_per_employee.p75, fill: "#334155" },
   ];
 
   const safeMargin = (val: number | null | undefined) => {
@@ -523,12 +525,12 @@ export default function ResultsDashboard({ assessment, onBack, onDelete, isLoadi
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={revPerEmpData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                       <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#888888", fontWeight: 600 }} interval={0} stroke="#e4e4e7" />
-                      <YAxis tickFormatter={(val) => `£${val / 1000}k`} tick={{ fontSize: 10, fill: "#888888" }} stroke="#e4e4e7" />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#71717a", fontWeight: 600 }} interval={0} dy={4} stroke="#e4e4e7" />
+                      <YAxis tickFormatter={(val) => `£${val / 1000}k`} tick={{ fontSize: 10, fill: "#71717a" }} stroke="#e4e4e7" />
                       <Tooltip content={<CustomTooltip formatter={(value: any) => `£${Number(value).toLocaleString()}`} />} cursor={{ fill: "#94a3b8", fillOpacity: 0.08 }} />
                       <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={45}>
                         {revPerEmpData.map((entry, index) => {
-                          const isActual = entry.name === (companyName || "SME Actual");
+                          const isActual = index === 0;
                           return <Cell key={`cell-${index}`} fill={isActual ? "#4f46e5" : "#18181b"} />;
                         })}
                       </Bar>
